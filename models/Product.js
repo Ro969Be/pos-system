@@ -1,12 +1,28 @@
-import mongoose from 'mongoose';
+const mongoose = require("mongoose");
 
-const productSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    price: { type: Number, required: true },
-    stock: { type: Number, required: true, default: 0 },
-    discount: { type: Number, default: 0 }, // 割引率 %
-    category: { type: String, required: true }, 
-    description: { type: String, required: true }, 
-}, { timestamps: true });
+const productSchema = new mongoose.Schema(
+    {
+        name: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        price: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+        imageUrl: {
+            type: String,
+        },
+        stock: {
+            type: Number,
+            default: null, // null の場合「無限在庫」として扱える
+        },
+    },
+    { timestamps: true }
+);
 
-export default mongoose.model('Product', productSchema);
+const Product = mongoose.model("Product", productSchema);
+
+module.exports = Product;
