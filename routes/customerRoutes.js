@@ -1,3 +1,5 @@
+// customerRoutes.js
+
 const express = require("express");
 const {
   getCustomers,

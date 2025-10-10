@@ -1,3 +1,5 @@
+// customerController.js
+
 const Customer = require("../models/Customer");
 
 // 全顧客取得

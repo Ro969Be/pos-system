@@ -1,3 +1,5 @@
+<!-- AdminReport.vue -->
+
 <script setup lang="ts">
 import api from "@/api/axios";
 

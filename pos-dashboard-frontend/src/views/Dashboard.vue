@@ -1,3 +1,5 @@
+<!-- Dashboard.vue -->
+
 <template>
   <div class="dashboard">
     <h1>POS管理ダッシュボード</h1>

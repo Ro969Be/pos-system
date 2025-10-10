@@ -1,3 +1,5 @@
+<!-- Login.vue -->
+
 <template>
   <div class="login">
     <h2>ログイン</h2>

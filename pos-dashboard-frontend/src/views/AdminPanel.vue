@@ -1,3 +1,5 @@
+<!-- AdminPanel.vue -->
+
 <template>
   <div class="space-y-2">
     <button @click="downloadReport('sales-list/daily')" class="px-4 py-2 bg-blue-500 text-white rounded">

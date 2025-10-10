@@ -1,3 +1,5 @@
+<!-- Products.vue -->
+
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useProductStore } from "@/stores/products";

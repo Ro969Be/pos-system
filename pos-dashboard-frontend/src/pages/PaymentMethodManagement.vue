@@ -1,3 +1,5 @@
+<!-- PaymentMethodManagement.vue -->
+
 <template>
     <div class="p-6">
         <h2 class="text-xl font-bold mb-4">支払い方法管理</h2>

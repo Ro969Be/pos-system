@@ -1,3 +1,5 @@
+<!-- Orders.vue -->
+
 <template>
   <div>
     <h1>注文一覧</h1>

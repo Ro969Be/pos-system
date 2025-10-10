@@ -1,3 +1,5 @@
+// productController.js
+
 const Product = require("../models/Product");
 const fs = require("fs");
 const path = require("path");

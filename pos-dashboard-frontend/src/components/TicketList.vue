@@ -1,3 +1,5 @@
+<!-- TicketList.vue -->
+
 <script setup lang="ts">
 import { useTicketStore } from "@/stores/tickets";
 import { useProductStore } from "@/stores/products";

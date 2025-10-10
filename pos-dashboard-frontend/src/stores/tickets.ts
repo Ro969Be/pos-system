@@ -1,3 +1,5 @@
+// tickets.ts
+
 import { defineStore } from "pinia";
 import api from "@/api/axios";
 

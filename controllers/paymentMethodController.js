@@ -1,4 +1,4 @@
-// controllers/paymentMethodController.js
+// paymentMethodController.js
 const PaymentMethod = require("../models/PaymentMethod");
 
 // 支払い方法一覧取得
