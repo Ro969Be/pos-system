@@ -1,0 +1,106 @@
+### ==========================================
+### 🧪 POSシステム API テストファイル
+### ------------------------------------------
+### CommonJS構成対応
+### 対象: Staff / Customer / PublicCustomer 認証・CRUDテスト
+### 実行方法:
+###   VSCode にて REST Client 拡張を導入し、
+###   各ブロック上の「Send Request」をクリック
+### ==========================================
+
+@baseUrl = http://localhost:5000/api
+@token = {{token}}   # 認証トークンを動的に上書き可能
+
+
+### ==========================================
+### 🧍‍♂️ Staff 認証テスト
+### ==========================================
+
+### スタッフ登録
+POST {{baseUrl}}/auth/staff/register
+Content-Type: application/json
+
+{
+  "name": "管理者A",
+  "email": "admin@example.com",
+  "password": "admin123",
+  "role": "admin"
+}
+
+### スタッフログイン
+POST {{baseUrl}}/auth/staff/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+
+
+### ==========================================
+### 👥 Customer（店舗管理画面用顧客）テスト
+### ==========================================
+
+### 顧客登録
+POST {{baseUrl}}/auth/customer/register
+Content-Type: application/json
+
+{
+  "name": "山田太郎",
+  "email": "taro@example.com",
+  "password": "123456"
+}
+
+### 顧客ログイン
+POST {{baseUrl}}/auth/customer/login
+Content-Type: application/json
+
+{
+  "email": "taro@example.com",
+  "password": "123456"
+}
+
+### 顧客一覧取得（JWT必要：スタッフ権限）
+GET {{baseUrl}}/customers
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWMwZTFhYjRkMjRhYTI5NTcwYzY2NyIsInR5cGUiOiJzdGFmZiIsImlhdCI6MTc2MDMwMTc5OCwiZXhwIjoxNzYwOTA2NTk4fQ._T9o1sdM4jLboCXNgwhXlHF6yW-roe9Ydtbg95oDUQM
+
+
+### ==========================================
+### 🌐 PublicCustomer（一般公開サイト用顧客）テスト
+### ==========================================
+
+### パブリック顧客登録
+POST {{baseUrl}}/auth/public-customer/register
+Content-Type: application/json
+
+{
+  "name": "一般顧客ユーザー",
+  "email": "public@example.com",
+  "password": "password123"
+}
+
+### パブリック顧客ログイン
+POST {{baseUrl}}/auth/public-customer/login
+Content-Type: application/json
+
+{
+  "email": "public@example.com",
+  "password": "password123"
+}
+
+
+### ==========================================
+### 🧾 JWT 認証テスト（保護ルート例）
+### ==========================================
+
+### JWT付きで保護ルートへアクセス（Staff用）
+GET {{baseUrl}}/protected/staff
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWMwZTFhYjRkMjRhYTI5NTcwYzY2NyIsInR5cGUiOiJzdGFmZiIsImlhdCI6MTc2MDMwMTc5OCwiZXhwIjoxNzYwOTA2NTk4fQ._T9o1sdM4jLboCXNgwhXlHF6yW-roe9Ydtbg95oDUQM
+
+### JWT付きで保護ルートへアクセス（Customer用）
+GET {{baseUrl}}/protected/customer
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWMwZTFhYjRkMjRhYTI5NTcwYzY2OSIsInR5cGUiOiJjdXN0b21lciIsImlhdCI6MTc2MDMwMTgyMywiZXhwIjoxNzYwOTA2NjIzfQ.GrUPqyIB-dBCtrb5eg23NUvScjbhhY51oLiBw-6D2Fw
+
+### JWT付きで保護ルートへアクセス（PublicCustomer用）
+GET {{baseUrl}}/protected/public-customer
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWMwZTFhYjRkMjRhYTI5NTcwYzY2YiIsInR5cGUiOiJwdWJsaWMtY3VzdG9tZXIiLCJpYXQiOjE3NjAzMDE4NTAsImV4cCI6MTc2MDkwNjY1MH0.4aI-8AR8Vj2wiZ9GQJpWZut-wr72ehJ9vqtef96Hy8s
