@@ -1,4 +1,11 @@
-// Order.js
+// ==========================================================
+// models/Order.js
+// ==========================================================
+// 注文モデル
+// - 税率（複数対応: 8%, 10%, 0%）
+// - 割引（order単位 / item単位）
+// - 個別会計（splitPayments配列）
+// ==========================================================
 
 const mongoose = require("mongoose");
 const Product = require("./Product");
@@ -10,6 +17,7 @@ const orderSchema = new mongoose.Schema(
       ref: "Store",
       required: true,
     },
+
     items: [
       {
         product: {
@@ -18,14 +26,31 @@ const orderSchema = new mongoose.Schema(
           required: true,
         },
         quantity: { type: Number, required: true, min: 1 },
+        taxRate: { type: Number, enum: [0, 8, 10], default: 10 }, // 🔹税率
+        discounts: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Discount",
+          },
+        ], // アイテム個別割引
+        splitGroup: { type: String, default: null }, // 個別会計グループ
       },
     ],
+
     totalPrice: { type: Number, required: true, default: 0 },
-    status: {
-      type: String,
-      enum: ["reserved", "completed", "cancelled"],
-      default: "reserved",
-    },
+    discounts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Discount",
+      },
+    ], // 注文全体割引
+    splitPayments: [
+      {
+        label: { type: String }, // 例: "Aさん分", "Bさん分"
+        amount: { type: Number, required: true },
+      },
+    ],
+
     payments: [
       {
         method: {
@@ -36,35 +61,34 @@ const orderSchema = new mongoose.Schema(
         amount: { type: Number, required: true, min: 0 },
       },
     ],
+
+    status: {
+      type: String,
+      enum: ["reserved", "completed", "cancelled"],
+      default: "reserved",
+    },
+
     reservationDate: { type: Date, required: true, index: true },
-    customerName: { type: String, trim: true },
-    customerPhone: { type: String, trim: true, index: true },
-    tableNumber: { type: Number },
-    staff: { type: String },
-    isNoShow: { type: Boolean, default: false },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: "Customer" },
   },
   { timestamps: true }
 );
 
-// ---------------- Hooks ----------------
 orderSchema.pre("save", async function (next) {
   try {
-    // ✅ 合計金額を再計算
     let total = 0;
+
     for (const item of this.items) {
       const product = await Product.findById(item.product);
-      if (!product) return next(new Error("存在しない商品が含まれています"));
-      total += product.price * item.quantity;
+      if (!product) return next(new Error("存在しない商品があります"));
+
+      const base = product.price * item.quantity;
+      const taxRate = item.taxRate || 10;
+      const taxed = Math.round(base * (1 + taxRate / 100));
+      total += taxed;
     }
+
     this.totalPrice = Math.round(total);
-
-    // ✅ 支払い合計チェック
-    const paid = this.payments.reduce((sum, p) => sum + p.amount, 0);
-    if (paid !== this.totalPrice) {
-      return next(new Error("支払い合計が注文金額と一致しません"));
-    }
-
     next();
   } catch (err) {
     next(err);
