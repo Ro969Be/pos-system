@@ -26,6 +26,8 @@ const routes: RouteRecordRaw[] = [
   { path: "/products", name: "Products", component: Products, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/orders", name: "Orders", component: Orders, meta: { requiresAuth: true } },
   { path: "/reports", name: "Reports", component: Reports, meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: "/customers", name: "CustomersList", component: () => import("@/views/CustomersList.vue"),},
+  { path: "/customers/:id", name: "CustomerDetail", component: () => import("@/views/CustomerDetail.vue"),},
 
   // 管理画面: カテゴリプリセット管理（管理者のみ）
   { path: "/admin/category-presets", name: "CategoryPresetManagement", component: CategoryPresetManagement, meta: { requiresAuth: true, requiresAdmin: true } },
