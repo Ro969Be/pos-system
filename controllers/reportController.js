@@ -1,178 +1,223 @@
 // ==========================================================
-// controllers/reportController.js
+// backend/controllers/reportController.js
 // ==========================================================
-// 日報（勤怠・売上・レジ差異）CSV/PDF
+// 売上レポート・CSV / PDF出力処理
+// ----------------------------------------------------------
+// CommonJS対応・日本語フォント対応
 // ==========================================================
+
 const { Parser } = require("json2csv");
-const PDFDocument = require("pdfkit"); // 直接PDF生成もOKだが、ユーティリティに委譲
-const path = require("path");
+const PDFDocument = require("pdfkit");
+const moment = require("moment");
 const fs = require("fs");
+const path = require("path");
 const Order = require("../models/Order");
-const Attendance = require("../models/Attendance");
-const CashSession = require("../models/CashSession");
 const PaymentMethod = require("../models/PaymentMethod");
-const mongoose = require("mongoose");
-const { buildDailyPdf } = require("../utils/dailyReportPdf");
 
-// 共通：日付レンジ
-function dayRange(d) {
-  const date = new Date(d);
-  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const end = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
-  return { start, end };
+// ====== 日本語フォント設定 ======
+const fontPath = path.join(__dirname, "../fonts/NotoSansJP-Regular.ttf");
+if (!fs.existsSync(fontPath)) {
+  console.warn("⚠️ 日本語フォントが見つかりません:", fontPath);
 }
 
-// JSON整形（売上：決済内訳）
-async function salesBreakdown(storeId, start, end) {
-  const pipeline = [
-    {
-      $match: {
-        storeId: new mongoose.Types.ObjectId(storeId),
-        status: "completed",
-        createdAt: { $gte: start, $lte: end },
-      },
-    },
-    { $unwind: "$payments" },
-    {
-      $lookup: {
-        from: "paymentmethods",
-        localField: "payments.method",
-        foreignField: "_id",
-        as: "methodInfo",
-      },
-    },
-    {
-      $addFields: {
-        methodName: {
-          $cond: [
-            { $gt: [{ $size: "$methodInfo" }, 0] },
-            { $arrayElemAt: ["$methodInfo.displayName", 0] },
-            "$payments.methodName",
-          ],
-        },
-      },
-    },
-    {
-      $group: {
-        _id: "$methodName",
-        total: { $sum: "$payments.amount" },
-        count: { $sum: 1 },
-      },
-    },
-    { $sort: { total: -1 } },
-  ];
-  return await Order.aggregate(pipeline);
+// ====== 日付フィルタ ======
+function buildDateFilter(
+  period,
+  startDate,
+  endDate,
+  field = "reservationDate"
+) {
+  const match = {};
+  if (period === "daily") {
+    match[field] = {
+      $gte: moment().startOf("day").toDate(),
+      $lte: moment().endOf("day").toDate(),
+    };
+  } else if (period === "monthly") {
+    match[field] = {
+      $gte: moment().startOf("month").toDate(),
+      $lte: moment().endOf("month").toDate(),
+    };
+  } else if (startDate && endDate) {
+    match[field] = { $gte: new Date(startDate), $lte: new Date(endDate) };
+  }
+  return match;
 }
 
-// CSV出力
-exports.dailyCsv = async (req, res) => {
+// ====== CSV出力（日/月） ======
+const salesListCSV = async (req, res) => {
   try {
-    const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
-    const { start, end } = dayRange(dateStr);
+    const period = req.params.period || null;
+    const match = buildDateFilter(period);
 
-    const orders = await Order.find({
-      storeId: req.storeId,
-      status: "completed",
-      createdAt: { $gte: start, $lte: end },
-    });
-    const attendances = await Attendance.find({
-      storeId: req.storeId,
-      date: { $gte: start, $lte: end },
-    });
-    const session = await CashSession.findOne({
-      storeId: req.storeId,
-      businessDate: start,
-    });
-    const payments = await salesBreakdown(req.storeId, start, end);
+    const orders = await Order.find(match)
+      .populate("items.product")
+      .populate("payments.method");
 
-    const fields = ["セクション", "項目", "値"];
-    const rows = [];
-
-    const salesTotal = orders.reduce((s, o) => s + o.totalPrice, 0);
-    rows.push({ セクション: "売上", 項目: "売上合計", 値: salesTotal });
-    payments.forEach((p) =>
-      rows.push({ セクション: "売上内訳", 項目: p._id, 値: p.total })
-    );
-
-    const laborMin = attendances.reduce((s, a) => s + (a.totalMinutes || 0), 0);
-    rows.push({ セクション: "勤怠", 項目: "総労働分数", 値: laborMin });
-
-    if (session) {
-      rows.push({
-        セクション: "レジ",
-        項目: "openingCash",
-        値: session.openingCash,
-      });
-      rows.push({
-        セクション: "レジ",
-        項目: "cashSales(期待)",
-        値: session.expectedCash - session.openingCash,
-      });
-      rows.push({
-        セクション: "レジ",
-        項目: "expectedCash",
-        値: session.expectedCash,
-      });
-      rows.push({
-        セクション: "レジ",
-        項目: "closingCash",
-        値: session.closingCash,
-      });
-      rows.push({
-        セクション: "レジ",
-        項目: "overShort",
-        値: session.overShort,
-      });
-    }
+    const fields = ["日付", "顧客名", "商品", "ステータス", "支払い内訳"];
+    const data = orders.map((o) => ({
+      日付: o.createdAt.toISOString().split("T")[0],
+      顧客名: o.customerName || "N/A",
+      商品: o.items.map((i) => i.product?.name || "").join(", "),
+      ステータス: o.status,
+      支払い内訳: o.payments
+        .map((p) => `${p.method?.displayName || "不明"}: ¥${p.amount}`)
+        .join(", "),
+    }));
 
     const parser = new Parser({ fields });
-    const csv = parser.parse(rows);
+    const csv = parser.parse(data);
 
     res.header("Content-Type", "text/csv; charset=utf-8");
-    res.attachment(`daily-${dateStr}.csv`);
+    res.attachment(`sales-list-${period || "all"}.csv`);
     res.send("\uFEFF" + csv);
-  } catch (e) {
-    res.status(500).json({ message: e.message });
+  } catch (err) {
+    console.error("salesListCSV error:", err);
+    res.status(500).json({ message: "CSV出力エラー", error: err.message });
   }
 };
 
-// PDF出力（ユーティリティに委譲）
-exports.dailyPdf = async (req, res) => {
+// ====== PDF出力（日/月） ======
+const salesSummaryPDF = async (req, res) => {
   try {
-    const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
-    const { start, end } = dayRange(dateStr);
+    const period = req.params.period;
+    const match = buildDateFilter(period);
 
-    const orders = await Order.find({
-      storeId: req.storeId,
-      status: "completed",
-      createdAt: { $gte: start, $lte: end },
-    }).populate("payments.method");
-    const attendances = await Attendance.find({
-      storeId: req.storeId,
-      date: { $gte: start, $lte: end },
-    });
-    const session = await CashSession.findOne({
-      storeId: req.storeId,
-      businessDate: start,
-    });
-    const paymentBreakdown = await salesBreakdown(req.storeId, start, end);
+    const summary = await Order.aggregate([
+      { $match: match },
+      { $unwind: "$payments" },
+      {
+        $lookup: {
+          from: "paymentmethods",
+          localField: "payments.method",
+          foreignField: "_id",
+          as: "methodInfo",
+        },
+      },
+      { $unwind: "$methodInfo" },
+      {
+        $group: {
+          _id: { method: "$methodInfo.displayName" },
+          total: { $sum: "$payments.amount" },
+        },
+      },
+    ]);
 
-    buildDailyPdf(res, {
-      dateStr,
-      orders,
-      attendances,
-      session,
-      paymentBreakdown,
+    const doc = new PDFDocument({ margin: 40 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=sales-summary-${period}.pdf`
+    );
+    doc.pipe(res);
+
+    if (fs.existsSync(fontPath)) doc.font(fontPath);
+    doc
+      .fontSize(18)
+      .text(`売上サマリー (${period})`, { align: "center" })
+      .moveDown();
+
+    summary.forEach((s) => {
+      doc.fontSize(12).text(`${s._id.method}: ¥${s.total.toLocaleString()}`);
     });
-  } catch (e) {
-    res.status(500).json({ message: e.message });
+
+    doc.end();
+  } catch (err) {
+    console.error("salesSummaryPDF error:", err);
+    res.status(500).json({ message: "PDF出力エラー", error: err.message });
   }
+};
+
+// ====== CSV出力（期間指定） ======
+const salesListCSVRange = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const match = buildDateFilter(null, startDate, endDate);
+
+    const orders = await Order.find(match)
+      .populate("items.product")
+      .populate("payments.method");
+
+    const fields = ["日付", "顧客名", "商品", "ステータス", "支払い内訳"];
+    const data = orders.map((o) => ({
+      日付: o.createdAt.toISOString().split("T")[0],
+      顧客名: o.customerName || "N/A",
+      商品: o.items.map((i) => i.product?.name || "").join(", "),
+      ステータス: o.status,
+      支払い内訳: o.payments
+        .map((p) => `${p.method?.displayName || "不明"}: ¥${p.amount}`)
+        .join(", "),
+    }));
+
+    const parser = new Parser({ fields });
+    const csv = parser.parse(data);
+
+    res.header("Content-Type", "text/csv; charset=utf-8");
+    res.attachment(`sales-list-${startDate}_${endDate}.csv`);
+    res.send("\uFEFF" + csv);
+  } catch (err) {
+    console.error("salesListCSVRange error:", err);
+    res.status(500).json({ message: "CSV出力エラー", error: err.message });
+  }
+};
+
+// ====== PDF出力（期間指定） ======
+const salesSummaryPDFRange = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const match = buildDateFilter(null, startDate, endDate);
+
+    const summary = await Order.aggregate([
+      { $match: match },
+      { $unwind: "$payments" },
+      {
+        $lookup: {
+          from: "paymentmethods",
+          localField: "payments.method",
+          foreignField: "_id",
+          as: "methodInfo",
+        },
+      },
+      { $unwind: "$methodInfo" },
+      {
+        $group: {
+          _id: { method: "$methodInfo.displayName" },
+          total: { $sum: "$payments.amount" },
+        },
+      },
+    ]);
+
+    const doc = new PDFDocument({ margin: 40 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=sales-summary-${startDate}_${endDate}.pdf`
+    );
+    doc.pipe(res);
+
+    if (fs.existsSync(fontPath)) doc.font(fontPath);
+    doc
+      .fontSize(18)
+      .text(`売上サマリー (${startDate} ~ ${endDate})`, { align: "center" })
+      .moveDown();
+
+    summary.forEach((s) => {
+      doc.fontSize(12).text(`${s._id.method}: ¥${s.total.toLocaleString()}`);
+    });
+
+    doc.end();
+  } catch (err) {
+    console.error("salesSummaryPDFRange error:", err);
+    res.status(500).json({ message: "PDF出力エラー", error: err.message });
+  }
+};
+
+// ==========================================================
+// モジュールエクスポート
+// ==========================================================
+module.exports = {
+  salesListCSV,
+  salesSummaryPDF,
+  salesListCSVRange,
+  salesSummaryPDFRange,
 };
