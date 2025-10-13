@@ -1,4 +1,8 @@
-// PaymentMethod.js
+// ==========================================================
+// models/PaymentMethod.js
+// ==========================================================
+// 決済種別マスタ
+// ==========================================================
 
 const mongoose = require("mongoose");
 
@@ -9,13 +13,12 @@ const paymentMethodSchema = new mongoose.Schema(
       ref: "Store",
       required: true,
     },
-    name: { type: String, required: true, unique: true }, // 例: "cash", "card", "emoney", "paypay"
-    displayName: { type: String, required: true }, // UI 表示用
-    isActive: { type: Boolean, default: true }, // 使用可否
+    code: { type: String, required: true, unique: true }, // 例: CASH, CREDIT, PAYPAY
+    displayName: { type: String, required: true },
+    active: { type: Boolean, default: true },
+    sortOrder: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
-const PaymentMethod = mongoose.model("PaymentMethod", paymentMethodSchema);
-
-module.exports = PaymentMethod;
+module.exports = mongoose.model("PaymentMethod", paymentMethodSchema);

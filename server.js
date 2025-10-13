@@ -32,6 +32,7 @@ const ticketRoutes = require("./routes/ticketRoutes");
 const tableRoutes = require("./routes/tableRoutes");
 const reservationRoutes = require("./routes/reservationRoutes");
 const salesRoutes = require("./routes/salesRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 // ==========================================================
 // Expressアプリ作成
@@ -74,6 +75,7 @@ app.use("/api/tickets", ticketRoutes);
 app.use("/api/tables", tableRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/sales", salesRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // ==========================================================
 // ルートテスト
