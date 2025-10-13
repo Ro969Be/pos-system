@@ -9,6 +9,8 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const http = require("http");
+const { Server } = require("socket.io");
 const cors = require("cors");
 
 // ==========================================================
@@ -24,6 +26,7 @@ const authCustomerRoutes = require("./routes/authCustomerRoutes");
 const authPublicCustomerRoutes = require("./routes/authPublicCustomerRoutes");
 const protectedRoutes = require("./routes/protectedRoutes");
 const customerRoutes = require("./routes/customerRoutes");
+const orderItemRoutes = require("./routes/orderItemRoutes");
 
 // ==========================================================
 // Expressアプリ作成
@@ -36,6 +39,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// HTTPサーバーを生成
+const server = http.createServer(app);
+// Socket.IOサーバーを作成してCORS許可
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST", "PATCH"] },
+});
+// アプリケーション全体で io を参照できるようにする
+app.set("io", io);
+io.on("connection", (socket) => {
+  console.log("🟢 KDS Client connected:", socket.id);
+  socket.on("disconnect", () =>
+    console.log("🔴 KDS Client disconnected:", socket.id)
+  );
+});
+
 // ==========================================================
 // APIルート
 // ==========================================================
@@ -44,6 +62,7 @@ app.use("/api/auth/customer", authCustomerRoutes);
 app.use("/api/auth/public-customer", authPublicCustomerRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/customers", customerRoutes);
+app.use("/api/order-items", orderItemRoutes);
 
 // ==========================================================
 // ルートテスト
