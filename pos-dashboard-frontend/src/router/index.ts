@@ -28,6 +28,8 @@ const routes: RouteRecordRaw[] = [
   { path: "/reports", name: "Reports", component: Reports, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/customers", name: "CustomersList", component: () => import("@/views/CustomersList.vue"),},
   { path: "/customers/:id", name: "CustomerDetail", component: () => import("@/views/CustomerDetail.vue"),},
+  { path: "/tables", name: "TableLayout", component: () => import("@/views/TableLayout.vue"),},
+  { path: "/reservations/new", name: "ReservationForm", component: () => import("@/views/ReservationForm.vue"),},
 
   // 管理画面: カテゴリプリセット管理（管理者のみ）
   { path: "/admin/category-presets", name: "CategoryPresetManagement", component: CategoryPresetManagement, meta: { requiresAuth: true, requiresAdmin: true } },

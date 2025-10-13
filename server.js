@@ -29,6 +29,8 @@ const customerRoutes = require("./routes/customerRoutes");
 const orderItemRoutes = require("./routes/orderItemRoutes");
 const startOrderItemAlertJob = require("./utils/orderItemAlertJob");
 const ticketRoutes = require("./routes/ticketRoutes");
+const tableRoutes = require("./routes/tableRoutes");
+const reservationRoutes = require("./routes/reservationRoutes");
 
 // ==========================================================
 // Expressアプリ作成
@@ -68,6 +70,8 @@ app.use("/api/protected", protectedRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/order-items", orderItemRoutes);
 app.use("/api/tickets", ticketRoutes);
+app.use("/api/tables", tableRoutes);
+app.use("/api/reservations", reservationRoutes);
 
 // ==========================================================
 // ルートテスト
