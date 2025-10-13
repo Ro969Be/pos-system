@@ -1,31 +1,23 @@
-// Product.js
-
+// models/Product.js
 const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema(
-    {
-        name: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        price: {
-            type: Number,
-            required: true,
-            min: 0,
-        },
-        imageUrl: {
-            type: String,
-        },
-        stock: {
-            type: Number,
-            default: null, // null の場合「無限在庫」として扱える
-        },
-        category: { type: String },
-    },
-    { timestamps: true }
+  {
+    storeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Store",
+      required: true,
+    }, // 追加
+    name: { type: String, required: true, trim: true },
+    price: { type: Number, required: true, min: 0 },
+    cost: { type: Number, default: 0 }, // 原価設定(後述機能12と共通)
+    stock: { type: Number, default: null },
+    category: { type: String },
+    imageUrl: { type: String },
+    expectedStock: { type: Number, default: 0 },
+    notes: { type: String },
+  },
+  { timestamps: true }
 );
 
-const Product = mongoose.model("Product", productSchema);
-
-module.exports = Product;
+module.exports = mongoose.model("Product", productSchema);

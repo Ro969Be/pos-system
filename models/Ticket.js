@@ -4,13 +4,26 @@ const mongoose = require("mongoose");
 
 const ticketSchema = new mongoose.Schema(
   {
-    order: { type: mongoose.Schema.Types.ObjectId, ref: "Order", default: null }, // 予約と紐付け
+    storeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Store",
+      required: true,
+    },
+    order: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      default: null,
+    }, // 予約と紐付け
     tableNumber: { type: Number, default: null }, // レストラン
-    staff: { type: String, default: null },       // サロン
+    staff: { type: String, default: null }, // サロン
 
     items: [
       {
-        product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+        product: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
         quantity: { type: Number, required: true },
         notes: { type: String }, // 例: "氷なし", "大盛り"
       },

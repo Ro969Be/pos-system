@@ -26,6 +26,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+// storeContextMiddleware を全ルートに適用
+router.use(auth, storeContext);
+
 // 商品一覧
 router.get("/", getProducts);
 

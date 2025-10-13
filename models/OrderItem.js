@@ -6,6 +6,11 @@ const mongoose = require("mongoose");
 
 const orderItemSchema = new mongoose.Schema(
   {
+    storeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Store",
+      required: true,
+    },
     product: { type: String, required: true },
     quantity: { type: Number, required: true },
     status: {

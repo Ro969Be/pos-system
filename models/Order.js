@@ -5,9 +5,18 @@ const Product = require("./Product");
 
 const orderSchema = new mongoose.Schema(
   {
+    storeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Store",
+      required: true,
+    },
     items: [
       {
-        product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+        product: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
         quantity: { type: Number, required: true, min: 1 },
       },
     ],
@@ -19,7 +28,11 @@ const orderSchema = new mongoose.Schema(
     },
     payments: [
       {
-        method: { type: mongoose.Schema.Types.ObjectId, ref: "PaymentMethod", required: true },
+        method: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "PaymentMethod",
+          required: true,
+        },
         amount: { type: Number, required: true, min: 0 },
       },
     ],
