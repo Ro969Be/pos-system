@@ -1,4 +1,11 @@
-// Ticket.js
+// ==========================================================
+// models/Ticket.js
+// ==========================================================
+// 伝票モデル（領収書/レシート対応）
+// - 宛名、但し書き、インボイス番号を追加
+// - 店舗・オーダーとの紐付け
+// - 各アイテム・ステータス管理
+// ==========================================================
 
 const mongoose = require("mongoose");
 
@@ -9,14 +16,17 @@ const ticketSchema = new mongoose.Schema(
       ref: "Store",
       required: true,
     },
+
     order: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
-      default: null,
-    }, // 予約と紐付け
-    tableNumber: { type: Number, default: null }, // レストラン
-    staff: { type: String, default: null }, // サロン
+      default: null, // 会計済み注文と紐付け
+    },
 
+    tableNumber: { type: Number, default: null },
+    staff: { type: String, default: null },
+
+    // ✅ 伝票内のアイテムリスト
     items: [
       {
         product: {
@@ -29,15 +39,21 @@ const ticketSchema = new mongoose.Schema(
       },
     ],
 
+    // ✅ ステータス管理
     status: {
       type: String,
       enum: ["open", "closed", "cancelled"],
       default: "open",
     },
+
+    // ✅ 領収書・インボイス対応
+    receiptName: { type: String, trim: true }, // 宛名
+    receiptNote: { type: String, trim: true }, // 但し書き
+    invoiceNumber: { type: String, trim: true }, // インボイス登録番号
+    issueDate: { type: Date, default: Date.now }, // 発行日
   },
   { timestamps: true }
 );
 
-const Ticket = mongoose.model("Ticket", ticketSchema);
-
-module.exports = Ticket;
+// ✅ CommonJSエクスポート
+module.exports = mongoose.model("Ticket", ticketSchema);
