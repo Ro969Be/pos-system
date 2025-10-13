@@ -1,10 +1,10 @@
 // ==========================================================
 // models/Shift.js
 // ==========================================================
-// スタッフのシフト予定（storeIdスコープ）
-// - date, startTime, endTime をISOで保存
-// - staffName は自由記述（既存のスタッフ管理が無くても運用可能）
+// 勤務シフトモデル
+// - 日付 / 開始時刻 / 終了時刻 / 担当スタッフ
 // ==========================================================
+
 const mongoose = require("mongoose");
 
 const shiftSchema = new mongoose.Schema(
@@ -16,15 +16,32 @@ const shiftSchema = new mongoose.Schema(
     },
     staffId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    }, // 任意（ユーザ管理がある場合）
-    staffName: { type: String, required: true, trim: true },
-    role: { type: String, default: "staff" },
-    date: { type: Date, required: true, index: true }, // その日の0:00など
-    startTime: { type: Date, required: true }, // 実シフト開始
-    endTime: { type: Date, required: true }, // 実シフト終了
-    note: { type: String, default: "" },
+      ref: "Staff",
+      required: true,
+    },
+    staffName: {
+      type: String,
+      required: true, // ✅ 必須フィールド
+      trim: true,
+    },
+    date: {
+      type: Date,
+      required: true,
+    },
+    startTime: {
+      type: String,
+      required: true, // ✅ String型に変更
+      trim: true,
+    },
+    endTime: {
+      type: String,
+      required: true, // ✅ String型に変更
+      trim: true,
+    },
+    role: {
+      type: String,
+      default: "staff",
+    },
   },
   { timestamps: true }
 );

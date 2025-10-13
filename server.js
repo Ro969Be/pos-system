@@ -42,6 +42,7 @@ const salesTrendRoutes = require("./routes/salesTrendRoutes");
 const salesCategoryRoutes = require("./routes/salesCategoryRoutes");
 const salesPaymentRoutes = require("./routes/salesPaymentRoutes");
 const salesDashboardRoutes = require("./routes/salesDashboardRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 // ==========================================================
 // Expressアプリ作成
@@ -94,6 +95,7 @@ app.use("/api/sales-trend", salesTrendRoutes);
 app.use("/api/sales-category", salesCategoryRoutes);
 app.use("/api/sales-payment", salesPaymentRoutes);
 app.use("/api/sales-dashboard", salesDashboardRoutes);
+app.use("/api/auth", authRoutes);
 
 // ==========================================================
 // ルートテスト

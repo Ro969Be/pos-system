@@ -1,234 +1,145 @@
-<!-- ==========================================================
-DashboardTrend.vue
---------------------------------------------------------------
-・期間切替: 日/週/月
-・棒(売上) + 折れ線(会計数)
-・テーブル明細
-・日別の行からモーダルで伝票詳細
-・CSV/PDFボタン（/api/sales-trend を流用）
-=========================================================== -->
 <template>
-  <div class="dashboard-trend">
-    <div class="filters">
-      <label>店舗:</label>
-      <select v-model="storeId" v-if="stores.length">
-        <option v-for="s in stores" :key="s._id" :value="s._id">{{ s.name }}</option>
-      </select>
-      <span v-else class="muted">店舗データ未取得</span>
+  <div class="trend-card">
+    <h2>📊 売上トレンド</h2>
 
-      <label>期間:</label>
-      <select v-model="period">
-        <option value="daily">日別</option>
-        <option value="weekly">週別</option>
-        <option value="monthly">月別</option>
-      </select>
-
-      <label>年:</label>
-      <select v-model="year">
-        <option v-for="y in years" :key="y" :value="y">{{ y }}年</option>
-      </select>
-
-      <label v-if="period==='daily'">月:</label>
-      <select v-if="period==='daily'" v-model="month">
-        <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
-      </select>
-
-      <button @click="loadData">表示</button>
-
-      <!-- CSV / PDF は日別（年月指定）に対して有効 -->
-      <a
-        class="btn csv"
-        :href="`/api/sales-trend/csv?year=${year}&month=${month}&storeId=${storeId}`"
-        target="_blank"
-        :class="{ disabled: period!=='daily' }"
-        @click.prevent="period!=='daily' ? null : undefined"
-      >📥 CSV</a>
-
-      <a
-        class="btn pdf"
-        :href="`/api/sales-trend/pdf?year=${year}&month=${month}&storeId=${storeId}`"
-        target="_blank"
-        :class="{ disabled: period!=='daily' }"
-        @click.prevent="period!=='daily' ? null : undefined"
-      >🧾 PDF</a>
+    <!-- 期間切り替えボタン -->
+    <div class="toggle">
+      <button
+        v-for="p in periods"
+        :key="p.value"
+        :class="{ active: p.value === selectedPeriod }"
+        @click="selectedPeriod = p.value"
+      >
+        {{ p.label }}
+      </button>
     </div>
 
-    <v-chart :option="chartOption" autoresize style="height: 420px" />
+    <!-- 棒グラフ -->
+    <canvas ref="trendChart"></canvas>
 
-    <div v-if="rows.length" class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>ラベル</th>
-            <th>売上</th>
-            <th>会計数</th>
-            <th>平均単価</th>
-            <th v-if="period==='daily'">詳細</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="r in rows" :key="r.label">
-            <td>{{ labelText(r.label) }}</td>
-            <td>¥{{ r.totalSales.toLocaleString() }}</td>
-            <td>{{ r.orderCount }}</td>
-            <td>¥{{ r.avg.toLocaleString() }}</td>
-            <td v-if="period==='daily'">
-              <button class="link" @click="openDetail(r.label)">🔍</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <OrderDetailModal
-      v-if="showModal"
-      :orders="detailOrders"
-      @close="showModal=false"
-    />
+    <!-- 集計テーブル -->
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>期間</th>
+          <th>売上合計</th>
+          <th>会計数</th>
+          <th>平均単価</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="row in summaryRows" :key="row.label">
+          <td>{{ row.label }}</td>
+          <td>¥{{ row.sales.toLocaleString() }}</td>
+          <td>{{ row.count }}</td>
+          <td>¥{{ row.avg.toLocaleString() }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>
 
-<script>
-/* eslint-disable */
-// Composition API でなく Options API で記述（既存プロジェクトに合わせやすい）
-import axios from "axios";
-import { use } from "echarts/core";
-import VChart from "vue-echarts";
-import { BarChart, LineChart } from "echarts/charts";
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-} from "echarts/components";
-import { CanvasRenderer } from "echarts/renderers";
-import OrderDetailModal from "./OrderDetailModal.vue";
+<script setup>
+// ==========================================================
+// DashboardTrend.vue
+// ----------------------------------------------------------
+// 売上トレンドグラフ + 集計表 + 日付切替
+// ==========================================================
 
-use([BarChart, LineChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer]);
+import { ref, watch, onMounted } from "vue";
+import Chart from "chart.js/auto";
+import { fetchDashboardSummary } from "../api/dashboardService.js";
 
-export default {
-  name: "DashboardTrend",
-  components: { VChart, OrderDetailModal },
-  data() {
-    const now = new Date();
-    return {
-      period: "daily", // daily / weekly / monthly
-      year: now.getFullYear(),
-      month: now.getMonth() + 1,
-      years: Array.from({ length: 6 }, (_, i) => now.getFullYear() - i),
-      stores: [],
-      storeId: "",
-      rows: [], // API結果
-      showModal: false,
-      detailOrders: [],
-    };
-  },
-  computed: {
-    chartOption() {
-      return {
-        title: { text: this.chartTitle(), left: "center" },
-        tooltip: {
-          trigger: "axis",
-          formatter: (params) => {
-            const s = params.find((p) => p.seriesName === "売上");
-            const o = params.find((p) => p.seriesName === "会計数");
-            const label = this.labelText(s.axisValue);
-            return `${label}<br/>売上: ¥${(s?.value ?? 0).toLocaleString()}<br/>会計数: ${(o?.value ?? 0)}`;
-          },
+// データ状態管理
+const periods = [
+  { label: "日別", value: "daily" },
+  { label: "週別", value: "weekly" },
+  { label: "月別", value: "monthly" },
+];
+const selectedPeriod = ref("weekly");
+const summaryRows = ref([]);
+
+const trendChart = ref(null);
+let chartInstance = null;
+
+// データ取得
+async function loadData() {
+  const res = await fetchDashboardSummary();
+
+  // モック変換（実際はresを加工）
+  summaryRows.value = [
+    { label: "今日", sales: res.today, count: 18, avg: Math.round(res.today / 18) },
+    { label: "今週", sales: res.week, count: 52, avg: Math.round(res.week / 52) },
+    { label: "今月", sales: res.month, count: 220, avg: Math.round(res.month / 220) },
+  ];
+
+  renderChart();
+}
+
+// グラフ描画
+function renderChart() {
+  const ctx = trendChart.value.getContext("2d");
+
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: summaryRows.value.map(r => r.label),
+      datasets: [
+        {
+          label: "売上額",
+          data: summaryRows.value.map(r => r.sales),
+          backgroundColor: ["#4b9ce2", "#67c587", "#f4c95d"],
         },
-        legend: { bottom: 0 },
-        xAxis: { type: "category", data: this.rows.map((r) => r.label) },
-        yAxis: [
-          { type: "value", name: "売上(円)" },
-          { type: "value", name: "会計数", position: "right" },
-        ],
-        series: [
-          {
-            name: "売上",
-            type: "bar",
-            data: this.rows.map((r) => r.totalSales),
-            itemStyle: { color: "#1e88e5" },
-          },
-          {
-            name: "会計数",
-            type: "line",
-            yAxisIndex: 1,
-            data: this.rows.map((r) => r.orderCount),
-            itemStyle: { color: "#ffb300" },
-            smooth: true,
-          },
-        ],
-      };
+      ],
     },
-  },
-  methods: {
-    chartTitle() {
-      if (this.period === "daily") return `${this.year}年${this.month}月 売上推移`;
-      if (this.period === "weekly") return `${this.year}年 週別売上推移`;
-      return `${this.year}年 月別売上推移`;
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } },
     },
-    labelText(label) {
-      // daily: 日、weekly: 週、monthly: 月
-      if (this.period === "daily") return `${label}日`;
-      if (this.period === "weekly") return `${label}週`;
-      return `${label}月`;
-    },
-    async loadStores() {
-      try {
-        const { data } = await axios.get("/api/stores");
-        this.stores = data || [];
-        if (!this.storeId && this.stores.length) this.storeId = this.stores[0]._id;
-      } catch (e) {
-        // 店舗APIが未実装でも動作継続
-        this.stores = [];
-        this.storeId = "";
-      }
-    },
-    async loadData() {
-      const { data } = await axios.get("/api/sales-dashboard/trend", {
-        params: {
-          period: this.period,
-          year: this.year,
-          month: this.month,
-          storeId: this.storeId || undefined,
-        },
-      });
-      this.rows = data || [];
-    },
-    async openDetail(dayLabel) {
-      // 日別のみ詳細対応：YYYY-MM-DD を作る
-      if (this.period !== "daily") return;
-      const y = this.year;
-      const m = String(this.month).padStart(2, "0");
-      const d = String(dayLabel).padStart(2, "0");
-      const iso = `${y}-${m}-${d}`;
-      const { data } = await axios.get(`/api/sales-dashboard/detail/${iso}/${this.storeId || ""}`);
-      this.detailOrders = data;
-      this.showModal = true;
-    },
-  },
-  async mounted() {
-    await this.loadStores();
-    await this.loadData();
-  },
-};
+  });
+}
+
+watch(selectedPeriod, loadData);
+onMounted(loadData);
 </script>
 
 <style scoped>
-.dashboard-trend { padding: 8px; }
-.filters {
-  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px;
+.trend-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
-.filters label { font-weight: 600; }
-.btn { padding: 6px 10px; border-radius: 6px; text-decoration: none; color: #fff; margin-left: 4px; }
-.btn.csv { background: #43a047; }
-.btn.pdf { background: #7b1fa2; }
-.btn.disabled { background: #bbb !important; pointer-events: none; }
-.table-wrap { margin-top: 16px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { border: 1px solid #ddd; padding: 6px; text-align: right; }
-th { background: #f7f7f7; }
-th:first-child, td:first-child { text-align: center; }
-button.link { background: transparent; border: none; color: #1e88e5; cursor: pointer; }
-.muted { color: #888; }
+.toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.toggle button {
+  border: 1px solid #ddd;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  background: #fafafa;
+}
+.toggle button.active {
+  background: #4b9ce2;
+  color: #fff;
+}
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+.summary-table th, .summary-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+.summary-table th {
+  background: #f9f9f9;
+}
 </style>

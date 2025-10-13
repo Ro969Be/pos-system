@@ -1,22 +1,23 @@
 ### ==========================================
-### 🧪 POSシステム API テストファイル
+### 🧪 POSシステム API テストファイル（最新版）
 ### ------------------------------------------
-### CommonJS構成対応
-### 対象: Staff / Customer / PublicCustomer 認証・CRUDテスト
-### 実行方法:
-###   VSCode にて REST Client 拡張を導入し、
-###   各ブロック上の「Send Request」をクリック
+### 対応構成:
+###   - CommonJS構成（backendサーバー）
+###   - MongoDB v7+ / Node.js v18+ / JWT認証
+### ------------------------------------------
+### 使用方法:
+###   1. VSCode 拡張機能「REST Client」をインストール
+###   2. 各リクエスト上の「Send Request」をクリック
 ### ==========================================
 
 @baseUrl = http://localhost:5000/api
 @token = {{token}}   # 認証トークンを動的に上書き可能
 
-
 ### ==========================================
-### 🧍‍♂️ Staff 認証テスト
+### 🧍‍♂️ Staff（管理者・スタッフ） 認証テスト
 ### ==========================================
 
-### スタッフ登録
+### スタッフ登録（admin@example.com / admin123）
 POST {{baseUrl}}/auth/staff/register
 Content-Type: application/json
 
@@ -36,9 +37,8 @@ Content-Type: application/json
   "password": "admin123"
 }
 
-
 ### ==========================================
-### 👥 Customer（店舗管理画面用顧客）テスト
+### 👥 Customer（店舗顧客） 認証テスト
 ### ==========================================
 
 ### 顧客登録
@@ -48,7 +48,8 @@ Content-Type: application/json
 {
   "name": "山田太郎",
   "email": "taro@example.com",
-  "password": "123456"
+  "password": "123456",
+  "phone": "080-1111-2222"
 }
 
 ### 顧客ログイン
@@ -60,13 +61,12 @@ Content-Type: application/json
   "password": "123456"
 }
 
-### 顧客一覧取得（JWT必要：スタッフ権限）
+### 顧客一覧取得（スタッフ権限が必要）
 GET {{baseUrl}}/customers
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWMwZTFhYjRkMjRhYTI5NTcwYzY2NyIsInR5cGUiOiJzdGFmZiIsImlhdCI6MTc2MDMwMTc5OCwiZXhwIjoxNzYwOTA2NTk4fQ._T9o1sdM4jLboCXNgwhXlHF6yW-roe9Ydtbg95oDUQM
-
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWQyMDM5MmEyOWU4YWFkMzczMGVkMyIsInR5cGUiOiJzdGFmZiIsImlhdCI6MTc2MDM3MDg2MywiZXhwIjoxNzYwOTc1NjYzfQ.cYA5Msh1towOaLXRLSfOS7jlmBCkWa_wLms-WTw7zSk
 
 ### ==========================================
-### 🌐 PublicCustomer（一般公開サイト用顧客）テスト
+### 🌐 PublicCustomer（一般ユーザー） 認証テスト
 ### ==========================================
 
 ### パブリック顧客登録
@@ -74,9 +74,9 @@ POST {{baseUrl}}/auth/public-customer/register
 Content-Type: application/json
 
 {
-  "name": "一般顧客ユーザー",
-  "email": "public@example.com",
-  "password": "password123"
+  "name": "一般ユーザー1",
+  "email": "public1@example.com",
+  "password": "public123"
 }
 
 ### パブリック顧客ログイン
@@ -84,23 +84,77 @@ POST {{baseUrl}}/auth/public-customer/login
 Content-Type: application/json
 
 {
-  "email": "public@example.com",
-  "password": "password123"
+  "email": "public1@example.com",
+  "password": "public123"
 }
 
-
 ### ==========================================
-### 🧾 JWT 認証テスト（保護ルート例）
+### 🧾 保護ルート（JWTテスト）
 ### ==========================================
 
-### JWT付きで保護ルートへアクセス（Staff用）
+### Staff専用ルート
 GET {{baseUrl}}/protected/staff
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWMwZTFhYjRkMjRhYTI5NTcwYzY2NyIsInR5cGUiOiJzdGFmZiIsImlhdCI6MTc2MDMwMTc5OCwiZXhwIjoxNzYwOTA2NTk4fQ._T9o1sdM4jLboCXNgwhXlHF6yW-roe9Ydtbg95oDUQM
+Authorization: Bearer {{token}}
 
-### JWT付きで保護ルートへアクセス（Customer用）
+### Customer専用ルート
 GET {{baseUrl}}/protected/customer
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWMwZTFhYjRkMjRhYTI5NTcwYzY2OSIsInR5cGUiOiJjdXN0b21lciIsImlhdCI6MTc2MDMwMTgyMywiZXhwIjoxNzYwOTA2NjIzfQ.GrUPqyIB-dBCtrb5eg23NUvScjbhhY51oLiBw-6D2Fw
+Authorization: Bearer {{token}}
 
-### JWT付きで保護ルートへアクセス（PublicCustomer用）
+### PublicCustomer専用ルート
 GET {{baseUrl}}/protected/public-customer
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWMwZTFhYjRkMjRhYTI5NTcwYzY2YiIsInR5cGUiOiJwdWJsaWMtY3VzdG9tZXIiLCJpYXQiOjE3NjAzMDE4NTAsImV4cCI6MTc2MDkwNjY1MH0.4aI-8AR8Vj2wiZ9GQJpWZut-wr72ehJ9vqtef96Hy8s
+Authorization: Bearer {{token}}
+
+### ==========================================
+### 🏪 Store / Category / Product CRUD テスト
+### ==========================================
+
+### 店舗一覧
+GET {{baseUrl}}/stores
+Authorization: Bearer {{token}}
+
+### カテゴリ一覧
+GET {{baseUrl}}/categories
+Authorization: Bearer {{token}}
+
+### 商品一覧
+GET {{baseUrl}}/products
+Authorization: Bearer {{token}}
+
+### ==========================================
+### 🪑 Table / Reservation / Order テスト
+### ==========================================
+
+### テーブル一覧
+GET {{baseUrl}}/tables
+Authorization: Bearer {{token}}
+
+### 予約一覧
+GET {{baseUrl}}/reservations
+Authorization: Bearer {{token}}
+
+### 注文一覧
+GET {{baseUrl}}/orders
+Authorization: Bearer {{token}}
+
+### ==========================================
+### 💵 Payment / Shift / Report テスト
+### ==========================================
+
+### 支払い一覧
+GET {{baseUrl}}/payments
+Authorization: Bearer {{token}}
+
+### シフト一覧
+GET {{baseUrl}}/shifts
+Authorization: Bearer {{token}}
+
+### 日報一覧
+GET {{baseUrl}}/reports
+Authorization: Bearer {{token}}
+
+### ==========================================
+### ✅ JWT動作確認メモ
+### ==========================================
+# 1. ログイン成功時に返される token をコピー
+# 2. 上記 {{token}} の部分に貼り付け
+# 3. すべての保護ルートテストで 200 OK が返れば成功
