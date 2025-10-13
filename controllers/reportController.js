@@ -1,245 +1,178 @@
-// reportController.js
-
+// ==========================================================
+// controllers/reportController.js
+// ==========================================================
+// 日報（勤怠・売上・レジ差異）CSV/PDF
+// ==========================================================
 const { Parser } = require("json2csv");
-const PDFDocument = require("pdfkit");
-const moment = require("moment");
-const fs = require("fs");
+const PDFDocument = require("pdfkit"); // 直接PDF生成もOKだが、ユーティリティに委譲
 const path = require("path");
+const fs = require("fs");
 const Order = require("../models/Order");
+const Attendance = require("../models/Attendance");
+const CashSession = require("../models/CashSession");
 const PaymentMethod = require("../models/PaymentMethod");
+const mongoose = require("mongoose");
+const { buildDailyPdf } = require("../utils/dailyReportPdf");
 
-// ====== 日本語フォント設定 ======
-const fontPath = path.join(__dirname, "../fonts/NotoSansJP-Regular.ttf");
-if (!fs.existsSync(fontPath)) {
-  console.error("⚠️ 日本語フォントが見つかりません:", fontPath);
+// 共通：日付レンジ
+function dayRange(d) {
+  const date = new Date(d);
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const end = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999
+  );
+  return { start, end };
 }
 
-// ====== 日付フィルタユーティリティ ======
-function buildDateFilter(period, startDate, endDate, field = "reservationDate") {
-  const match = {};
-  if (period === "daily") {
-    match[field] = {
-      $gte: moment().startOf("day").toDate(),
-      $lte: moment().endOf("day").toDate()
-    };
-  } else if (period === "monthly") {
-    match[field] = {
-      $gte: moment().startOf("month").toDate(),
-      $lte: moment().endOf("month").toDate()
-    };
-  } else if (startDate && endDate) {
-    match[field] = {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate)
-    };
-  }
-  return match;
+// JSON整形（売上：決済内訳）
+async function salesBreakdown(storeId, start, end) {
+  const pipeline = [
+    {
+      $match: {
+        storeId: new mongoose.Types.ObjectId(storeId),
+        status: "completed",
+        createdAt: { $gte: start, $lte: end },
+      },
+    },
+    { $unwind: "$payments" },
+    {
+      $lookup: {
+        from: "paymentmethods",
+        localField: "payments.method",
+        foreignField: "_id",
+        as: "methodInfo",
+      },
+    },
+    {
+      $addFields: {
+        methodName: {
+          $cond: [
+            { $gt: [{ $size: "$methodInfo" }, 0] },
+            { $arrayElemAt: ["$methodInfo.displayName", 0] },
+            "$payments.methodName",
+          ],
+        },
+      },
+    },
+    {
+      $group: {
+        _id: "$methodName",
+        total: { $sum: "$payments.amount" },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { total: -1 } },
+  ];
+  return await Order.aggregate(pipeline);
 }
 
-// ====== CSV出力: 売上一覧 ======
-const salesListCSV = async (req, res) => {
+// CSV出力
+exports.dailyCsv = async (req, res) => {
   try {
-    const period = req.params.period || null;
-    const match = buildDateFilter(period);
+    const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
+    const { start, end } = dayRange(dateStr);
 
-    const orders = await Order.find(match)
-      .populate("items.product")
-      .populate("payments.method");
-
-    const fields = ["日付", "顧客名", "商品", "ステータス", "支払い内訳"];
-    const data = orders.map(o => ({
-      "日付":
-        o.reservationDate?.toISOString().split("T")[0] ||
-        o.createdAt.toISOString().split("T")[0],
-      "顧客名": o.customerName || "N/A",
-      "商品": o.items.map(i => i.product?.name || "").join(", "),
-      "ステータス": o.status,
-      "支払い内訳": o.payments
-        .map(p => `${p.method?.displayName || "不明"}: ¥${p.amount}`)
-        .join(", ")
-    }));
-
-    const parser = new Parser({ fields });
-    const csv = parser.parse(data);
-
-    res.header("Content-Type", "text/csv; charset=utf-8");
-    res.attachment(`sales-list-${period || "all"}.csv`);
-    res.send("\uFEFF" + csv); // BOM付きUTF-8
-  } catch (err) {
-    console.error("salesListCSV error:", err);
-    res.status(500).json({ message: "CSV出力エラー" });
-  }
-};
-
-// ====== CSV出力: 期間指定 ======
-const salesListCSVRange = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-    const match = buildDateFilter(null, startDate, endDate);
-
-    const orders = await Order.find(match)
-      .populate("items.product")
-      .populate("payments.method");
-
-    const fields = ["日付", "顧客名", "商品", "ステータス", "支払い内訳"];
-    const data = orders.map(o => ({
-      "日付":
-        o.reservationDate?.toISOString().split("T")[0] ||
-        o.createdAt.toISOString().split("T")[0],
-      "顧客名": o.customerName || "N/A",
-      "商品": o.items.map(i => i.product?.name || "").join(", "),
-      "ステータス": o.status,
-      "支払い内訳": o.payments
-        .map(p => `${p.method?.displayName || "不明"}: ¥${p.amount}`)
-        .join(", ")
-    }));
-
-    const parser = new Parser({ fields });
-    const csv = parser.parse(data);
-
-    res.header("Content-Type", "text/csv; charset=utf-8");
-    res.attachment(`sales-list-${startDate}_${endDate}.csv`);
-    res.send("\uFEFF" + csv);
-  } catch (err) {
-    console.error("salesListCSVRange error:", err);
-    res.status(500).json({ message: "CSV出力エラー" });
-  }
-};
-
-// ====== PDF出力: 売上サマリー（日/月単位） ======
-const salesSummaryPDF = async (req, res) => {
-  try {
-    const period = req.params.period; // "daily" or "monthly"
-    const match = buildDateFilter(period);
-
-    const groupBy =
-      period === "monthly"
-        ? { $dateToString: { format: "%Y-%m", date: "$reservationDate" } }
-        : { $dateToString: { format: "%Y-%m-%d", date: "$reservationDate" } };
-
-    const summary = await Order.aggregate([
-      { $match: match },
-      { $unwind: "$payments" },
-      {
-        $lookup: {
-          from: "paymentmethods",
-          localField: "payments.method",
-          foreignField: "_id",
-          as: "methodInfo"
-        }
-      },
-      { $unwind: "$methodInfo" },
-      {
-        $group: {
-          _id: { period: groupBy, method: "$methodInfo.displayName" },
-          totalAmount: { $sum: "$payments.amount" },
-          orderCount: { $sum: 1 }
-        }
-      },
-      { $sort: { "_id.period": 1, "_id.method": 1 } }
-    ]);
-
-    // ✅ PDF生成
-    const doc = new PDFDocument({ margin: 40 });
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename=sales-summary-${period}.pdf`);
-    doc.pipe(res);
-
-    if (fs.existsSync(fontPath)) {
-      doc.font(fontPath);
-    }
-
-    doc.fontSize(18).text(`売上サマリー (${period})`, { align: "center" });
-    doc.moveDown();
-
-    let currentPeriod = null;
-    summary.forEach(item => {
-      if (currentPeriod !== item._id.period) {
-        doc.moveDown();
-        doc.fontSize(14).text(`期間: ${item._id.period}`);
-        currentPeriod = item._id.period;
-      }
-      doc.fontSize(12).text(
-        `　- ${item._id.method}: ¥${item.totalAmount} （件数: ${item.orderCount}）`
-      );
+    const orders = await Order.find({
+      storeId: req.storeId,
+      status: "completed",
+      createdAt: { $gte: start, $lte: end },
     });
+    const attendances = await Attendance.find({
+      storeId: req.storeId,
+      date: { $gte: start, $lte: end },
+    });
+    const session = await CashSession.findOne({
+      storeId: req.storeId,
+      businessDate: start,
+    });
+    const payments = await salesBreakdown(req.storeId, start, end);
 
-    doc.end();
-  } catch (err) {
-    console.error("salesSummaryPDF error:", err);
-    res.status(500).json({ message: "PDF出力エラー" });
-  }
-};
+    const fields = ["セクション", "項目", "値"];
+    const rows = [];
 
-// ====== PDF出力: 期間指定 ======
-const salesSummaryPDFRange = async (req, res) => {
-  try {
-    const { startDate, endDate, unit } = req.query; // unit="daily" or "monthly"
-    const match = buildDateFilter(null, startDate, endDate);
-
-    const groupBy =
-      unit === "monthly"
-        ? { $dateToString: { format: "%Y-%m", date: "$reservationDate" } }
-        : { $dateToString: { format: "%Y-%m-%d", date: "$reservationDate" } };
-
-    const summary = await Order.aggregate([
-      { $match: match },
-      { $unwind: "$payments" },
-      {
-        $lookup: {
-          from: "paymentmethods",
-          localField: "payments.method",
-          foreignField: "_id",
-          as: "methodInfo"
-        }
-      },
-      { $unwind: "$methodInfo" },
-      {
-        $group: {
-          _id: { period: groupBy, method: "$methodInfo.displayName" },
-          totalAmount: { $sum: "$payments.amount" },
-          orderCount: { $sum: 1 }
-        }
-      },
-      { $sort: { "_id.period": 1, "_id.method": 1 } }
-    ]);
-
-    const doc = new PDFDocument({ margin: 40 });
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition",
-      `attachment; filename=sales-summary-${startDate}_${endDate}.pdf`
+    const salesTotal = orders.reduce((s, o) => s + o.totalPrice, 0);
+    rows.push({ セクション: "売上", 項目: "売上合計", 値: salesTotal });
+    payments.forEach((p) =>
+      rows.push({ セクション: "売上内訳", 項目: p._id, 値: p.total })
     );
-    doc.pipe(res);
 
-    if (fs.existsSync(fontPath)) {
-      doc.font(fontPath);
+    const laborMin = attendances.reduce((s, a) => s + (a.totalMinutes || 0), 0);
+    rows.push({ セクション: "勤怠", 項目: "総労働分数", 値: laborMin });
+
+    if (session) {
+      rows.push({
+        セクション: "レジ",
+        項目: "openingCash",
+        値: session.openingCash,
+      });
+      rows.push({
+        セクション: "レジ",
+        項目: "cashSales(期待)",
+        値: session.expectedCash - session.openingCash,
+      });
+      rows.push({
+        セクション: "レジ",
+        項目: "expectedCash",
+        値: session.expectedCash,
+      });
+      rows.push({
+        セクション: "レジ",
+        項目: "closingCash",
+        値: session.closingCash,
+      });
+      rows.push({
+        セクション: "レジ",
+        項目: "overShort",
+        値: session.overShort,
+      });
     }
 
-    doc.fontSize(18).text(`売上サマリー (${startDate} ~ ${endDate})`, { align: "center" });
-    doc.moveDown();
+    const parser = new Parser({ fields });
+    const csv = parser.parse(rows);
 
-    let currentPeriod = null;
-    summary.forEach(item => {
-      if (currentPeriod !== item._id.period) {
-        doc.moveDown();
-        doc.fontSize(14).text(`期間: ${item._id.period}`);
-        currentPeriod = item._id.period;
-      }
-      doc.fontSize(12).text(
-        `　- ${item._id.method}: ¥${item.totalAmount} （件数: ${item.orderCount}）`
-      );
-    });
-
-    doc.end();
-  } catch (err) {
-    console.error("salesSummaryPDFRange error:", err);
-    res.status(500).json({ message: "PDF出力エラー" });
+    res.header("Content-Type", "text/csv; charset=utf-8");
+    res.attachment(`daily-${dateStr}.csv`);
+    res.send("\uFEFF" + csv);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
   }
 };
 
-module.exports = {
-  salesListCSV,
-  salesSummaryPDF,
-  salesListCSVRange,
-  salesSummaryPDFRange
+// PDF出力（ユーティリティに委譲）
+exports.dailyPdf = async (req, res) => {
+  try {
+    const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
+    const { start, end } = dayRange(dateStr);
+
+    const orders = await Order.find({
+      storeId: req.storeId,
+      status: "completed",
+      createdAt: { $gte: start, $lte: end },
+    }).populate("payments.method");
+    const attendances = await Attendance.find({
+      storeId: req.storeId,
+      date: { $gte: start, $lte: end },
+    });
+    const session = await CashSession.findOne({
+      storeId: req.storeId,
+      businessDate: start,
+    });
+    const paymentBreakdown = await salesBreakdown(req.storeId, start, end);
+
+    buildDailyPdf(res, {
+      dateStr,
+      orders,
+      attendances,
+      session,
+      paymentBreakdown,
+    });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
 };

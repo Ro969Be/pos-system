@@ -1,17 +1,16 @@
 // ==========================================================
-// routes/reportRoutes.js
+// routes/attendanceRoutes.js
 // ==========================================================
 const express = require("express");
 const auth = require("../middleware/authMiddleware");
 const storeCtx = require("../middleware/storeContextMiddleware");
-const ctrl = require("../controllers/reportController");
+const ctrl = require("../controllers/attendanceController");
 
 const router = express.Router();
 router.use(auth, storeCtx);
 
-// /api/reports/daily.csv?date=YYYY-MM-DD
-router.get("/daily.csv", ctrl.dailyCsv);
-// /api/reports/daily.pdf?date=YYYY-MM-DD
-router.get("/daily.pdf", ctrl.dailyPdf);
+router.get("/", ctrl.listByDate);
+router.post("/clock-in", ctrl.clockIn);
+router.post("/clock-out/:id", ctrl.clockOut);
 
 module.exports = router;

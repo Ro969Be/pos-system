@@ -33,6 +33,15 @@ const tableRoutes = require("./routes/tableRoutes");
 const reservationRoutes = require("./routes/reservationRoutes");
 const salesRoutes = require("./routes/salesRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const shiftRoutes = require("./routes/shiftRoutes");
+const attendanceRoutes = require("./routes/attendanceRoutes");
+const cashSessionRoutes = require("./routes/cashSessionRoutes");
+const reportRoutes = require("./routes/reportRoutes");
+const salesReportRoutes = require("./routes/salesReportRoutes");
+const salesTrendRoutes = require("./routes/salesTrendRoutes");
+const salesCategoryRoutes = require("./routes/salesCategoryRoutes");
+const salesPaymentRoutes = require("./routes/salesPaymentRoutes");
+const salesDashboardRoutes = require("./routes/salesDashboardRoutes");
 
 // ==========================================================
 // Expressアプリ作成
@@ -76,6 +85,15 @@ app.use("/api/tables", tableRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/shifts", shiftRoutes);
+app.use("/api/attendances", attendanceRoutes);
+app.use("/api/cash-sessions", cashSessionRoutes);
+app.use("/api/reports", reportRoutes);
+app.use("/api/sales-report", salesReportRoutes);
+app.use("/api/sales-trend", salesTrendRoutes);
+app.use("/api/sales-category", salesCategoryRoutes);
+app.use("/api/sales-payment", salesPaymentRoutes);
+app.use("/api/sales-dashboard", salesDashboardRoutes);
 
 // ==========================================================
 // ルートテスト

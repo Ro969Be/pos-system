@@ -1,17 +1,16 @@
 // ==========================================================
-// routes/reportRoutes.js
+// routes/cashSessionRoutes.js
 // ==========================================================
 const express = require("express");
 const auth = require("../middleware/authMiddleware");
 const storeCtx = require("../middleware/storeContextMiddleware");
-const ctrl = require("../controllers/reportController");
+const ctrl = require("../controllers/cashSessionController");
 
 const router = express.Router();
 router.use(auth, storeCtx);
 
-// /api/reports/daily.csv?date=YYYY-MM-DD
-router.get("/daily.csv", ctrl.dailyCsv);
-// /api/reports/daily.pdf?date=YYYY-MM-DD
-router.get("/daily.pdf", ctrl.dailyPdf);
+router.get("/today", ctrl.todaySummary);
+router.post("/open", ctrl.open);
+router.post("/close/:id", ctrl.close);
 
 module.exports = router;

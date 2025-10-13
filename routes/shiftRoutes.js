@@ -1,17 +1,17 @@
 // ==========================================================
-// routes/reportRoutes.js
+// routes/shiftRoutes.js
 // ==========================================================
 const express = require("express");
 const auth = require("../middleware/authMiddleware");
 const storeCtx = require("../middleware/storeContextMiddleware");
-const ctrl = require("../controllers/reportController");
+const ctrl = require("../controllers/shiftController");
 
 const router = express.Router();
 router.use(auth, storeCtx);
 
-// /api/reports/daily.csv?date=YYYY-MM-DD
-router.get("/daily.csv", ctrl.dailyCsv);
-// /api/reports/daily.pdf?date=YYYY-MM-DD
-router.get("/daily.pdf", ctrl.dailyPdf);
+router.get("/", ctrl.list);
+router.post("/", ctrl.create);
+router.put("/:id", ctrl.update);
+router.delete("/:id", ctrl.remove);
 
 module.exports = router;
