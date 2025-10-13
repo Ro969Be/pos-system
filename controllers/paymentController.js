@@ -1,47 +1,82 @@
 // ==========================================================
-// controllers/paymentController.js
+// controllers/paymentController.js（修正版）
 // ==========================================================
-// 会計確定処理：複数決済・領収書発行対応
+// 会計確定処理：過剰支払い対応（現金優先・お釣り自動算出）
 // ==========================================================
 
 const Order = require("../models/Order");
 const Ticket = require("../models/Ticket");
 const Customer = require("../models/Customer");
-const PaymentMethod = require("../models/PaymentMethod");
-const { generateReceiptPdf } = require("../utils/receiptPdf");
 
-// 会計確定
+/**
+ * 支払いバリデーションとお釣り処理
+ */
+function validateAndAdjustPayments(total, payments) {
+  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+  const cash = payments.find(
+    (p) => p.methodName === "現金" || p.methodName === "CASH"
+  );
+  const cashAmount = cash ? cash.amount : 0;
+  const diff = totalPaid - total;
+
+  // 不足
+  if (diff < 0) {
+    throw new Error("支払いが不足しています。");
+  }
+
+  // ちょうど
+  if (diff === 0) {
+    return { totalPaid, change: 0, payments };
+  }
+
+  // 過剰支払い
+  if (diff > 0) {
+    if (!cash) {
+      throw new Error("現金が含まれていないため、過剰支払いはできません。");
+    }
+
+    if (diff > cashAmount) {
+      throw new Error("現金額が過剰分をカバーできません（お釣り不足）。");
+    }
+
+    // 現金からお釣りを引く
+    cash.amount = cashAmount - diff;
+    return { totalPaid, change: diff, payments };
+  }
+}
+
 exports.closeOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { payments } = req.body; // [{ methodId, amount }]
+    const { payments } = req.body; // [{ methodName, methodId, amount }]
 
     const order = await Order.findById(orderId).populate("items.product");
     if (!order)
       return res.status(404).json({ message: "注文が見つかりません" });
 
-    // 合計計算
     const total = order.items.reduce(
       (sum, i) => sum + i.product.price * i.quantity,
       0
     );
     order.totalPrice = total;
 
-    // 支払いチェック
-    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-    if (Math.abs(totalPaid - total) > 1) {
-      return res.status(400).json({ message: "支払い合計が一致しません" });
-    }
+    // バリデーション＆調整
+    const { change, payments: adjusted } = validateAndAdjustPayments(
+      total,
+      payments
+    );
 
-    // 支払いを保存
-    order.payments = payments.map((p) => ({
+    // 保存
+    order.payments = adjusted.map((p) => ({
       method: p.methodId,
+      methodName: p.methodName,
       amount: p.amount,
     }));
     order.status = "completed";
+    order.change = change;
     await order.save();
 
-    // チケット更新
+    // チケット処理
     const ticket = new Ticket({
       order: order._id,
       storeId: order.storeId,
@@ -51,7 +86,7 @@ exports.closeOrder = async (req, res) => {
     });
     await ticket.save();
 
-    // 顧客統計更新（既存）
+    // 顧客統計（既存処理）
     if (order.customer) {
       const customer = await Customer.findById(order.customer);
       if (customer) {
@@ -65,44 +100,8 @@ exports.closeOrder = async (req, res) => {
       }
     }
 
-    res.json({ message: "会計完了", order });
+    res.json({ message: "会計完了", order, change });
   } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// 決済方法一覧
-exports.getPaymentMethods = async (req, res) => {
-  try {
-    const methods = await PaymentMethod.find({
-      storeId: req.storeId,
-      active: true,
-    }).sort({ sortOrder: 1 });
-    res.json(methods);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// 領収書PDF出力
-exports.generateReceipt = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const { to, note } = req.body;
-    const order = await Order.findById(orderId).populate(
-      "items.product payments.method"
-    );
-    if (!order)
-      return res.status(404).json({ message: "注文が見つかりません" });
-
-    const setting = await require("../models/ReceiptSetting").findOne({
-      storeId: order.storeId,
-    });
-    if (!setting)
-      return res.status(404).json({ message: "領収書設定が見つかりません" });
-
-    generateReceiptPdf(res, { order, setting, to, note });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(400).json({ message: err.message });
   }
 };
