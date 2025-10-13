@@ -27,6 +27,7 @@ const authPublicCustomerRoutes = require("./routes/authPublicCustomerRoutes");
 const protectedRoutes = require("./routes/protectedRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const orderItemRoutes = require("./routes/orderItemRoutes");
+const startOrderItemAlertJob = require("./utils/orderItemAlertJob");
 
 // ==========================================================
 // Expressアプリ作成
@@ -53,6 +54,8 @@ io.on("connection", (socket) => {
     console.log("🔴 KDS Client disconnected:", socket.id)
   );
 });
+
+startOrderItemAlertJob(io);
 
 // ==========================================================
 // APIルート
