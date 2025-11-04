@@ -114,3 +114,64 @@
     background: #121a2b;
     color: #e5e7eb;
 }
+
+/* 基本：ヘッダーが1行に収まらない場合は2段に折り返しを許可 */
+.app-header {
+    flex-wrap: wrap;
+    /* ← これが無いと横幅オーバーで縦崩れします */
+}
+
+/* 縦表示になってしまうリンク（注文履歴など）の修正 */
+.app-header .hd-link {
+    writing-mode: initial;
+    /* ← デフォルト: 横書き */
+    white-space: nowrap;
+    /* ← 折り返さないように */
+}
+
+/* --- 幅1080px以下での2段構造 --- */
+@media (max-width: 1080px) {
+    .app-header {
+        gap: 8px;
+    }
+
+    /* 検索フォームを2段目全幅で表示 */
+    .app-header .search {
+        order: 2;
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    /* 右メニューを3段目に寄せる */
+    .app-header .right {
+        order: 3;
+        width: 100%;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    /* カートの金額文字は省略（潰れ防止） */
+    .app-header .cart-chip .total {
+        display: none;
+    }
+}
+
+/* --- 幅880px以下で注文履歴の文字を隠す（アイコン優先） --- */
+@media (max-width: 880px) {
+    .app-header .hd-link {
+        display: none;
+    }
+}
+
+/* --- さらに幅640px以下の最小対応 --- */
+@media (max-width: 640px) {
+    .app-header .search input {
+        min-width: 120px;
+    }
+
+    .app-header .burger {
+        width: 34px;
+        height: 34px;
+    }
+}

@@ -134,6 +134,26 @@ const routes = [
 
   // 404
   { path: "/:pathMatch(.*)*", redirect: "/public/shops" },
+
+  // Amazon風 注文履歴
+  {
+    path: "/orders",
+    name: "orders",
+    component: () => import("@/views/orders/Orders.vue"),
+    meta: { header: { ordersTabs: true, showCart: true, showOrdersLink: true, variant: "default", actions: ["cart"] } },
+  },
+  {
+    path: "/orders/buy-again",
+    name: "orders-buy-again",
+    component: () => import("@/views/orders/BuyAgain.vue"),
+    meta: { header: { ordersTabs: true, showCart: true, showOrdersLink: true, variant: "default", actions: ["cart"] } },
+  },
+  {
+    path: "/orders/not-shipped",
+    name: "orders-not-shipped",
+    component: () => import("@/views/orders/NotShipped.vue"),
+    meta: { header: { ordersTabs: true, showCart: true, showOrdersLink: true, variant: "default", actions: ["cart"] } },
+  },
 ];
 
-export default createRouter({ history: createWebHistory(), routes });
+export default createRouter({ history: createWebHistory(), routes, scrollBehavior(){ return { top: 0 }; } });
