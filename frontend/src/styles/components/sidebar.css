@@ -1,49 +1,68 @@
-/* サイドバー全体をflex縦：上=menu(可変スクロール) 下=bottom-auth(固定) */
+/* コンテナ（縦flex）: 上=menu(スクロール) / 下=bottom-auth(固定) */
 .sidebar {
     width: var(--sidebar-w);
-    background: #0f1522;
-    color: #e7ecf6;
-    border-right: 1px solid #1c2435;
-    z-index: 1000;
+    border-right: 1px solid var(--border);
+    background: rgba(13, 19, 33, .65);
+    backdrop-filter: blur(8px);
+    padding: 16px 10px;
+
     display: flex;
     flex-direction: column;
-    /* 高さはブレークポイントごとに指定（下で上書き） */
+    z-index: 1000;
 }
 
-/* メニューは伸縮領域＋独立スクロール */
+/* メニュー（伸縮＋独立スクロール） */
 .sidebar .menu {
     flex: 1 1 auto;
     overflow: auto;
-    padding: 12px;
+    padding: 4px 2px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
-/* 下部固定エリア：常に見える */
+/* 下部固定エリア */
 .sidebar .bottom-auth {
     flex: 0 0 auto;
-    padding: 12px;
-    border-top: 1px solid #1c2435;
-    background: #0f1522;
+    padding: 12px 8px;
+    border-top: 1px solid var(--border);
+    background: rgba(13, 19, 33, .65);
 }
 
-/* メニュー見た目 */
+/* ナビ見た目 */
+.nav-group {
+    margin-bottom: 18px;
+}
+
+.nav-title {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: .4px;
+    padding: 8px 12px;
+}
+
 .nav-link {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 10px 12px;
-    background: #1b2333;
-    color: #d5dbea;
-    border: 1px solid #1f2a3d;
+    margin: 4px 6px;
     border-radius: 10px;
+    border: 1px solid transparent;
+    background: #0b1220;
+    color: #d5dbea;
     cursor: pointer;
 }
 
+.nav-link:hover {
+    border-color: #1b2536;
+}
+
 .nav-link.active {
-    background: #3b82f6;
-    color: #fff;
+    background: linear-gradient(145deg, rgba(34, 211, 238, .14), rgba(244, 114, 182, .12));
+    border-color: #1f2a3a;
 }
 
 .nav-link.ghost {
@@ -60,24 +79,23 @@
     text-align: center;
 }
 
-/* デスクトップ(≥960px)：固定＋全高に対する高さ計算 */
+/* PC(≥960px): stickyで常時表示（高さはヘッダー差し引き） */
 @media (min-width:960px) {
     .sidebar {
-        position: fixed;
+        position: sticky;
         top: var(--header-h);
-        left: 0;
         height: calc(100vh - var(--header-h));
-        /* ← ここ大事 */
-        transform: none !important;
     }
 }
 
-/* モバイル(<960px)：ドロワー表示 */
-@media (max-width:959px) {
+/* Mobile(<960px): ドロワー（App.vue から .is-open を付与） */
+@media (max-width:959.98px) {
     .sidebar {
         position: fixed;
         top: var(--header-h);
         left: 0;
+        bottom: 0;
+        width: var(--sidebar-w);
         height: calc(100vh - var(--header-h));
         transform: translateX(-100%);
         transition: transform .22s ease;

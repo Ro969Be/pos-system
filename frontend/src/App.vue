@@ -23,4 +23,6 @@ import AppSidebar from "@/components/AppSidebar.vue";
 import { ui, closeSidebar } from "@/lib/ui";
 </script>
 
-<style src="@/styles/layout/app.css"></style>
+<style src="@/styles/styles.css"></style>
+<style src="@/styles/components/header.css"></style>
+<style src="@/styles/components/sidebar.css"></style>

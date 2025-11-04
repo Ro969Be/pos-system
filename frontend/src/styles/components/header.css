@@ -34,6 +34,7 @@
     background: #1b2333;
 }
 
+/* User dropdown */
 .user-dd {
     position: relative;
 }
@@ -47,13 +48,14 @@
     background: #1b2333;
     color: #e5e7eb;
     border: 1px solid #273146;
+    cursor: pointer;
 }
 
 .user-dd .menu {
     position: absolute;
     right: 0;
     top: calc(100% + 6px);
-    min-width: 160px;
+    min-width: 180px;
     background: #0f1522;
     border: 1px solid #273146;
     border-radius: 10px;
@@ -69,6 +71,7 @@
     background: #162033;
     color: #e5e7eb;
     border: 1px solid #1f2a3d;
+    cursor: pointer;
 }
 
 .user-dd .item+.item {
