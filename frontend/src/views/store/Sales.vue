@@ -1,13 +1,15 @@
 <template>
-  <section class="page">
-    <h2>売上</h2>
-    <p class="sub">日別/曜日別/商品別の集計やPDF/CSV出力を後で実装。</p>
-    <ul>
-      <li>日別売上</li>
-      <li>曜日別売上</li>
-      <li>商品別売上</li>
-    </ul>
+  <section class="page sales">
+    <h2>売上ダッシュボード</h2>
+    <p class="sub">※データはダミーです。バックエンド接続は後で行います。</p>
+
+    <!-- ダッシュボード本体を読み込み -->
+    <SalesDashboard />
   </section>
 </template>
-<script setup></script>
-<style src="../../styles/pages/Dashboard.css"></style>
+
+<script setup>
+import SalesDashboard from "@/views/store/SalesDashboard.vue";
+</script>
+
+<style src="../../styles/pages/Sales.css"></style>

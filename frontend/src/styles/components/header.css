@@ -1,0 +1,113 @@
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: var(--header-h);
+    padding: 0 16px;
+    background: #0f1522;
+    border-bottom: 1px solid #1f2636;
+}
+
+.left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.brand {
+    color: #e5e7eb;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.right {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.hd-link {
+    color: #cfd6e3;
+    text-decoration: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: #1b2333;
+}
+
+.user-dd {
+    position: relative;
+}
+
+.user-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #1b2333;
+    color: #e5e7eb;
+    border: 1px solid #273146;
+}
+
+.user-dd .menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 160px;
+    background: #0f1522;
+    border: 1px solid #273146;
+    border-radius: 10px;
+    padding: 6px;
+    z-index: 1000;
+}
+
+.user-dd .item {
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #162033;
+    color: #e5e7eb;
+    border: 1px solid #1f2a3d;
+}
+
+.user-dd .item+.item {
+    margin-top: 6px;
+}
+
+.user-dd .item.danger {
+    color: #ff6b6b;
+    border-color: #3a2426;
+}
+
+/* ハンバーガーは <960px だけ表示 */
+.icon-btn.burger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid #273146;
+    background: #121a2b;
+    color: #e5e7eb;
+}
+
+@media (min-width:960px) {
+    .icon-btn.burger {
+        display: none;
+    }
+}
+
+/* ギア */
+.icon-btn.gear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid #273146;
+    background: #121a2b;
+    color: #e5e7eb;
+}

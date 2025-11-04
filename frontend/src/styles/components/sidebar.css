@@ -1,0 +1,90 @@
+/* サイドバー全体をflex縦：上=menu(可変スクロール) 下=bottom-auth(固定) */
+.sidebar {
+    width: var(--sidebar-w);
+    background: #0f1522;
+    color: #e7ecf6;
+    border-right: 1px solid #1c2435;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    /* 高さはブレークポイントごとに指定（下で上書き） */
+}
+
+/* メニューは伸縮領域＋独立スクロール */
+.sidebar .menu {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* 下部固定エリア：常に見える */
+.sidebar .bottom-auth {
+    flex: 0 0 auto;
+    padding: 12px;
+    border-top: 1px solid #1c2435;
+    background: #0f1522;
+}
+
+/* メニュー見た目 */
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #1b2333;
+    color: #d5dbea;
+    border: 1px solid #1f2a3d;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.nav-link.active {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.nav-link.ghost {
+    background: transparent;
+}
+
+.nav-link.outline {
+    background: transparent;
+    border-style: dashed;
+}
+
+.icon {
+    width: 1.4rem;
+    text-align: center;
+}
+
+/* デスクトップ(≥960px)：固定＋全高に対する高さ計算 */
+@media (min-width:960px) {
+    .sidebar {
+        position: fixed;
+        top: var(--header-h);
+        left: 0;
+        height: calc(100vh - var(--header-h));
+        /* ← ここ大事 */
+        transform: none !important;
+    }
+}
+
+/* モバイル(<960px)：ドロワー表示 */
+@media (max-width:959px) {
+    .sidebar {
+        position: fixed;
+        top: var(--header-h);
+        left: 0;
+        height: calc(100vh - var(--header-h));
+        transform: translateX(-100%);
+        transition: transform .22s ease;
+        box-shadow: 0 10px 30px rgb(0 0 0 / 40%);
+    }
+
+    .sidebar.is-open {
+        transform: translateX(0);
+    }
+}

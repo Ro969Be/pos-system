@@ -1,0 +1,39 @@
+.page.sales {
+    padding: 20px;
+}
+
+.sales-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 1rem;
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    border: none;
+    background: #ccc;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.tab-btn.active {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.sales-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.sales-table th,
+.sales-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.sales-table th {
+    background: #f5f5f5;
+}

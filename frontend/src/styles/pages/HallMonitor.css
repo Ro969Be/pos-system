@@ -1,22 +1,22 @@
-.kmon {
+.hmon {
     padding: 16px;
 }
 
-.kmon-header {
+.hmon-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
 }
 
-.kmon-actions {
+.hmon-actions {
     display: flex;
     gap: 8px;
 }
 
 .board {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
 }
 

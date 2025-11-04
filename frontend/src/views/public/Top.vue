@@ -1,23 +1,23 @@
 <template>
-  <section class="page">
-    <h2>トップ</h2>
-    <p class="sub">来店者向けの入口ページ（店舗検索や予約への導線）。</p>
+  <section class="page auth-top">
+    <h2>トップページ</h2>
+    <p class="sub">一般向けメニュー</p>
 
     <div class="cards">
       <div class="card">
-        <h3>店舗を探す</h3>
-        <router-link class="btn" to="/public/shops">店舗一覧へ</router-link>
+        <h3>ログイン</h3>
+        <p>メール＋パスワード または LINEでログイン</p>
+        <router-link class="btn" to="/login">ログインへ</router-link>
       </div>
+
       <div class="card">
-        <h3>予約する</h3>
-        <router-link class="btn" to="/public/reservations">予約ページへ</router-link>
-      </div>
-      <div class="card">
-        <h3>クーポンを見る</h3>
-        <router-link class="btn" to="/public/coupons">クーポンへ</router-link>
+        <h3>新規登録</h3>
+        <p>まずは基本情報を入力してください</p>
+        <router-link class="btn ghost" to="/register">新規登録へ</router-link>
       </div>
     </div>
   </section>
 </template>
+
 <script setup></script>
-<style src="../../styles/pages/Top.css"></style>
+<style src="../../styles/pages/Auth.css"></style>
