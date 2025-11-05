@@ -215,3 +215,19 @@
         padding: 10px;
     }
 }
+
+/* tabs as links */
+.page.shops .tabs .tab-btn{
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #2a3140;
+  background: #0b111a;
+  color: #e8edf3;
+  text-decoration: none;
+  cursor: pointer;
+}
+.page.shops .tabs .tab-btn.active{
+  background:#e8edf3;
+  color:#0b111a;
+  font-weight:800;
+}

@@ -118,7 +118,9 @@
 /* 基本：ヘッダーが1行に収まらない場合は2段に折り返しを許可 */
 .app-header {
     flex-wrap: wrap;
-    /* ← これが無いと横幅オーバーで縦崩れします */
+    position: sticky;
+    top: 0;
+    z-index: 2000;
 }
 
 /* 縦表示になってしまうリンク（注文履歴など）の修正 */
@@ -145,7 +147,7 @@
     /* 右メニューを3段目に寄せる */
     .app-header .right {
         order: 3;
-        width: 100%;
+        width: auto;
         justify-content: flex-end;
         flex-wrap: wrap;
         gap: 6px;
@@ -154,6 +156,38 @@
     /* カートの金額文字は省略（潰れ防止） */
     .app-header .cart-chip .total {
         display: none;
+    }
+
+    .app-header .header-inner {
+        display: flex;
+        flex-wrap: wrap;               /* 必要に応じて2段レイアウト */
+        align-items: center;           /* 上下中央寄せ */
+        justify-content: space-between;
+        height: auto;                  /* 固定高さを解除して自然な高さに */
+        padding: 8px 16px;
+    }
+
+    .app-header .search-wrap {
+        flex: 1 1 100%;
+        /* 1段目・全幅に */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+    }
+    .app-header .right-actions {
+        display: flex;
+        align-items: center;
+        /* 上下中央に固定 */
+        gap: 12px;
+        flex: 1 1 100%;
+        /* 次の行で中央揃えに */
+        justify-content: center;
+    }
+
+    .app-header .cart-icon {
+        display: flex;
+        align-items: center;
     }
 }
 
