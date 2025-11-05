@@ -44,41 +44,32 @@
       </div>
     </div>
 
-    <div v-else class="grid salon">
+    <div v-else class="salon-wrap">
       <div class="toggles">
         <label><input type="radio" value="ladies" v-model="g" /> レディース</label>
         <label><input type="radio" value="men" v-model="g" /> メンズ</label>
       </div>
-      <div v-for="s in filteredSalon" :key="s.id" class="card link" @click="openDetail(s.id)">
-        <img :src="s.image" class="thumb" />
-        <div class="name">{{ s.name }}</div>
-        <div class="meta">
-          <span>評価 {{ s.rating.toFixed(1) }}</span>
-          <span>最寄り {{ s.station }}</span>
-          <span>ジャンル {{ s.genre }}</span>
+      <div class="grid salon">
+        <div v-for="s in filteredSalon" :key="s.id" class="card link" @click="openDetail(s.id)">
+          <img :src="s.image" class="thumb" />
+          <div class="name">{{ s.name }}</div>
+          <div class="meta">
+            <span>評価 {{ s.rating.toFixed(1) }}</span>
+            <span>最寄り {{ s.station }}</span>
+            <span>ジャンル {{ s.genre }}</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- カート簡易表示（webのみ） -->
-    <div v-if="tab==='web'" class="cart">
-      <h3>カート（他店舗混在OK・DB別保存）</h3>
-      <div v-if="cart.length===0" class="muted">カートは空です</div>
-      <div v-else class="lines">
-        <div v-for="(c,i) in cart" :key="i" class="line">
-          <span>{{ c.title }}</span>
-          <b>¥{{ c.price.toLocaleString() }}</b>
-        </div>
-        <div class="total">合計：<b>¥{{ cartTotal.toLocaleString() }}</b></div>
-        <button class="btn ghost">会計へ（ダミー）</button>
-      </div>
-    </div>
+    <!-- ※ 下部カートの簡易表示ブロックは削除済み（ヘッダーに集約） -->
   </section>
 </template>
 
 <script setup>
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import { add as addToCart } from "@/lib/cart"; // ヘッダーのカートと連動
 
 const router = useRouter();
 const tab = ref("food");     // 既定を「飲食」に
@@ -92,9 +83,8 @@ const webList = [
   {id:"w2", title:"耐熱マグ 2個セット",        price:1290, image:"/img/no-image.png", shop:"B店"},
   {id:"w3", title:"電動ミル",                  price:3980, image:"/img/no-image.png", shop:"C店"},
 ];
-const cart = ref([]);
-const addCart = (p)=> cart.value.push({...p});
-const cartTotal = computed(()=> cart.value.reduce((a,b)=>a+b.price,0));
+// ヘッダーのカートストアに追加
+const addCart = (p) => addToCart({ id:p.id, title:p.title, price:p.price, image:p.image, shopName:p.shop });
 
 // --- 飲食（食べログ風） ---
 const foodList = [
@@ -115,8 +105,8 @@ const filteredFood = computed(()=>{
 
 // --- サロン（Hot Pepper Beauty風） ---
 const salonList = [
-  {id:"s1", name:"Salon Grace",  rating:4.5, station:"新宿", genre:"ヘアサロン", gender:"ladies", image:"/img/no-image.png"},
-  {id:"s2", name:"MEN'S CUT X",  rating:4.2, station:"渋谷", genre:"メンズカット", gender:"men",    image:"/img/no-image.png"},
+  {id:"s1", name:"Salon Grace",  rating:4.5, station:"新宿",   genre:"ヘアサロン",    gender:"ladies", image:"/img/no-image.png"},
+  {id:"s2", name:"MEN'S CUT X",  rating:4.2, station:"渋谷",   genre:"メンズカット",  gender:"men",    image:"/img/no-image.png"},
   {id:"s3", name:"Nail & Lash",  rating:4.1, station:"表参道", genre:"ネイル・まつげ", gender:"ladies", image:"/img/no-image.png"},
 ];
 const filteredSalon = computed(()=>{

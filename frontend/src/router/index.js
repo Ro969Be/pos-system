@@ -154,6 +154,13 @@ const routes = [
     component: () => import("@/views/orders/NotShipped.vue"),
     meta: { header: { ordersTabs: true, showCart: true, showOrdersLink: true, variant: "default", actions: ["cart"] } },
   },
+
+  {
+    path: "/cart",
+    name: "cart",
+    component: () => import("@/views/Cart.vue"),
+    meta: { header: { showSearch:false, showCart:true, showOrdersLink:true, variant:"compact", actions:["orders","checkout"] } },
+  },
 ];
 
 export default createRouter({ history: createWebHistory(), routes, scrollBehavior(){ return { top: 0 }; } });

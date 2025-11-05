@@ -76,6 +76,7 @@ import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
 import { ui, toggleSidebar } from "@/lib/ui";
 import * as auth from "@/lib/auth";
+import { count as cartCount, total as cartTotal } from "@/lib/cart";
 
 const route = useRoute();
 
@@ -89,8 +90,6 @@ const actions      = computed(() => metaHeader.value.actions      ?? ["orders","
 const ordersTabs   = computed(() => metaHeader.value.ordersTabs   ?? false);
 
 // ダミーのカート合計（ストア接続前提で後差替）
-const cartCount = computed(() => 3);
-const cartTotal = computed(() => 5980);
 
 // ドロップダウン
 const showCartDropdown = ref(false);
