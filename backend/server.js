@@ -1,46 +1,39 @@
-// ----------------------
-// 環境変数の読み込み
-// ----------------------
-import dotenv from 'dotenv';
-dotenv.config(); // .env を読み込む（defaultで同じディレクトリ）
+import dotenv from "dotenv";
+dotenv.config();
 
-import express from 'express';
-import cors from 'cors';
-import mongoose from 'mongoose';
+import express from "express";
+import cors from "cors";
+import morgan from "morgan";
+import { connectDB } from "./db.js";
+import router from "./src/routes/index.js";
+import { notFound, errorHandler } from "./src/middleware/error.js";
 
 const app = express();
-app.use(cors());
+
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN?.split(",") ?? true,
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// ----------------------
-// .env から値を取得
-// ----------------------
-const MONGO_URI = process.env.MONGO_URI;
+app.use(morgan("dev"));
+
+app.get("/", (req, res) => res.send("Backend API working!"));
+
+app.use("/api", router);
+
+app.use(notFound);
+app.use(errorHandler);
+
 const PORT = process.env.PORT || 5000;
-
-// --- 環境変数が無い場合のチェック（デバッグ用）---
-if (!MONGO_URI) {
-  console.error('❌ ERROR: MONGO_URI が .env から読み込めていません。');
-  process.exit(1);
-}
-
-// ----------------------
-// MongoDB 接続開始
-// ----------------------
-mongoose.connect(MONGO_URI)
+connectDB(process.env.MONGO_URI)
   .then(() => {
-    console.log('✅ MongoDB connected');
-    app.listen(PORT, () => {
-      console.log(`✅ Server running at http://localhost:${PORT}`);
-    });
+    app.listen(PORT, () => console.log(`✅ Server http://localhost:${PORT}`));
   })
   .catch((err) => {
-    console.error('❌ MongoDB connection error:', err);
+    console.error("❌ Mongo connection error:", err);
+    process.exit(1);
   });
-
-// ----------------------
-// テスト用ルート
-// ----------------------
-app.get('/', (req, res) => {
-  res.send('Backend API working!');
-});
