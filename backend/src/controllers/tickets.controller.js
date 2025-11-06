@@ -1,21 +1,29 @@
+// backend/src/controllers/tickets.controller.js
 import Ticket from "../models/Ticket.js";
 import MenuItem from "../models/MenuItem.js";
 import Store from "../models/Store.js";
 import { ticketAlertColor } from "../utils/time.js";
 
-/** role=kitchen/hall での絞り込みと、アラート色を付与して返す（SLA反映） */
+/** role=kitchen/hall での絞り込みとアラート付与 */
 export async function listTickets(req, res, next) {
   try {
     const storeId = req.user.storeId;
     const { role = "kitchen" } = req.query;
 
-    const q = { storeId, status: { $in: ["PENDING", "COOKING", "READY"] } };
+    // 取得幅：ホールは READY/SERVED、キッチンは PENDING/COOKING/READY のみ
+    const statusFilterByRole = {
+      kitchen: ["PENDING", "COOKING", "READY"],
+      hall: ["READY", "SERVED"],
+    };
+    const statuses = statusFilterByRole[role] || statusFilterByRole.kitchen;
+
     const [store, tickets] = await Promise.all([
       Store.findById(storeId).lean(),
-      Ticket.find(q).sort({ "timestamps.createdAt": 1 }).lean(),
+      Ticket.find({ storeId, status: { $in: statuses } })
+        .sort({ "timestamps.createdAt": 1 })
+        .lean(),
     ]);
 
-    // メニュー情報（category / prepMinutes）をまとめて取得
     const menuIds = tickets.map((t) => t.menuItemId).filter(Boolean);
     const menuMap = new Map();
     if (menuIds.length) {
@@ -23,20 +31,11 @@ export async function listTickets(req, res, next) {
       for (const m of menus) menuMap.set(String(m._id), m);
     }
 
-    // ホール側は READY も見るが、role別フィルタは必要に応じて調整可
-    const filtered =
-      role === "hall"
-        ? tickets.filter((t) =>
-            ["PENDING", "COOKING", "READY"].includes(t.status)
-          )
-        : tickets;
-
-    const withAlert = filtered.map((t) => {
+    const withAlert = tickets.map((t) => {
       const m = t.menuItemId ? menuMap.get(String(t.menuItemId)) : null;
       return {
         ...t,
         alert: ticketAlertColor(t, store, m),
-        // デバッグ/可視化用（必要ならUIに表示）
         thresholdMin:
           m?.prepMinutes ?? store?.settings?.sla?.[m?.category || "food"] ?? 10,
       };
@@ -51,8 +50,9 @@ export async function listTickets(req, res, next) {
 export async function updateTicketStatus(req, res, next) {
   try {
     const storeId = req.user.storeId;
+    const userRole = req.user.role; // 'kitchen' | 'hall' | 'admin' 等
     const { id } = req.params;
-    const { action } = req.body; // 'start' | 'ready' | 'serve' | 'rollback'
+    const { action, to } = req.body; // rollback の場合 to: 'READY'|'PENDING'
 
     const t = await Ticket.findOne({ _id: id, storeId });
     if (!t) return res.status(404).json({ message: "Ticket not found" });
@@ -66,15 +66,34 @@ export async function updateTicketStatus(req, res, next) {
     ) {
       t.status = "READY";
       t.timestamps.readyAt = new Date();
-    } else if (action === "serve" && t.status === "READY") {
+    } else if (action === "serve") {
+      // ✅ 配膳はホール（または管理者）のみ
+      if (userRole !== "hall" && userRole !== "admin")
+        return res.status(403).json({ message: "Only hall can serve" });
+      if (t.status !== "READY")
+        return res
+          .status(400)
+          .json({ message: "Invalid action for current status" });
       t.status = "SERVED";
       t.timestamps.servedAt = new Date();
     } else if (action === "rollback") {
-      // 調理済/配膳済からの戻し
-      t.status = "PENDING";
-      t.timestamps.startedAt = null;
-      t.timestamps.readyAt = null;
-      t.timestamps.servedAt = null;
+      // ✅ 戻し（SERVED→READY/PENDING、READY→PENDING等）はホール（または管理者）のみ
+      if (userRole !== "hall" && userRole !== "admin")
+        return res.status(403).json({ message: "Only hall can rollback" });
+
+      console.log(to);
+      if (to === "READY") {
+        // どの状態からでも未配膳へ（必要に応じて制約追加可）
+        t.status = "READY";
+        t.timestamps.servedAt = null;
+        t.timestamps.readyAt = t.timestamps.readyAt || new Date();
+      } else {
+        // デフォルトは未調理へ
+        t.status = "PENDING";
+        t.timestamps.startedAt = null;
+        t.timestamps.readyAt = null;
+        t.timestamps.servedAt = null;
+      }
     } else {
       return res
         .status(400)
@@ -85,7 +104,7 @@ export async function updateTicketStatus(req, res, next) {
 
     try {
       const io = req.app.locals.io;
-      io?.emit("ticket:updated", {
+      io?.to(`store:${storeId}`).emit("ticket:updated", {
         _id: t._id,
         status: t.status,
         timestamps: t.timestamps,

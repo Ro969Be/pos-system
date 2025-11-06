@@ -65,6 +65,16 @@ export async function createOrder(req, res, next) {
     }
     if (tickets.length) await Ticket.insertMany(tickets);
 
+    try {
+      const io = req.app.locals.io;
+      if (io) {
+        io.to(`store:${storeId}`).emit("ticket:created", {
+          orderId: order._id,
+          count: tickets.length,
+        });
+      }
+    } catch {}
+
     res.status(201).json(order);
   } catch (e) {
     next(e);

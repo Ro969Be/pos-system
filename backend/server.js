@@ -46,6 +46,12 @@ app.locals.io = io;
 
 io.on("connection", (socket) => {
   console.log("🔌 socket connected:", socket.id);
+  // 追加: 店舗ルームに参加（storeIdはログイン後にクライアントから送る）
+  socket.on("joinStore", (storeId) => {
+    if (storeId) socket.join(`store:${storeId}`);
+  });
+  // デバッグ用
+  socket.on("ping", () => socket.emit("pong"));
   socket.on("disconnect", () =>
     console.log("🔌 socket disconnected:", socket.id)
   );

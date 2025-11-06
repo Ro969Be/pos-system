@@ -8,11 +8,9 @@
           <label><input type="radio" value="table" v-model="viewMode" @change="persistViewMode" /> テーブル別</label>
         </div>
         <button class="btn ghost" @click="reload">再読み込み</button>
-        <button class="btn danger" @click="reset">初期データに戻す</button>
       </div>
     </div>
 
-    <!-- Kitchen 専用カテゴリフィルタ -->
     <div class="filterbar">
       <div class="filter-controls">
         <label v-for="c in categories" :key="c" class="check">
@@ -26,233 +24,101 @@
       </div>
     </div>
 
-    <!-- ===== 時間順表示 ===== -->
     <div v-if="viewMode==='time'" class="board">
       <div class="col">
-        <h3>未着手</h3>
+        <h3>未着手/調理中</h3>
         <div class="cards">
-          <div v-for="it in pendingItems" :key="it.key" class="card" :class="{ late: isLate(it.order) }">
+          <div v-for="t in working" :key="t._id" class="card" :class="t.alert">
             <div class="meta">
-              <span class="badge">#{{ it.order.id }}</span>
-              <span class="table">Table {{ it.order.table }}</span>
-              <span class="time">{{ timeFrom(it.order.createdAt) }}</span>
-              <span v-if="isLate(it.order)" class="alert">⚠ 遅延</span>
+              <span class="badge">#{{ t.orderId?.slice(-6) }}</span>
+              <span class="table">Table {{ t.tableId ?? '-' }}</span>
+              <span class="time">{{ timeFrom(t.timestamps?.createdAt) }}</span>
+              <span v-if="t.alert!=='none'" class="alert">⚠ {{ t.alert }}</span>
             </div>
-            <div class="item-name">・{{ it.item.name }}</div>
+            <div class="item-name">・{{ t.name }}</div>
             <div class="ops">
-              <button class="btn primary" @click="toCooking(it)">着手（調理中へ）</button>
-              <button class="btn danger" @click="cancel(it)">キャンセル</button>
+              <!-- ✅ Kitchen は start / ready のみ -->
+              <button class="btn xs" @click="mark(t, t.status==='PENDING'?'start':'ready')">
+                {{ t.status==='PENDING' ? '着手' : '調理済み' }}
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       <div class="col">
-        <h3>調理中</h3>
+        <h3>配膳待ち</h3>
         <div class="cards">
-          <div v-for="it in cookingItems" :key="it.key" class="card" :class="{ late: isLate(it.order) }">
+          <div v-for="t in ready" :key="t._id" class="card ready" :class="t.alert">
             <div class="meta">
-              <span class="badge">#{{ it.order.id }}</span>
-              <span class="table">Table {{ it.order.table }}</span>
-              <span class="time">{{ timeFrom(it.order.createdAt) }}</span>
-              <span v-if="isLate(it.order)" class="alert">⚠ 遅延</span>
+              <span class="badge">#{{ t.orderId?.slice(-6) }}</span>
+              <span class="table">Table {{ t.tableId ?? '-' }}</span>
+              <span class="time">{{ timeFrom(t.timestamps?.createdAt) }}</span>
+              <span v-if="t.alert!=='none'" class="alert">⚠ {{ t.alert }}</span>
             </div>
-            <div class="item-name">・{{ it.item.name }}</div>
-            <div class="ops">
-              <button class="btn primary" @click="toReady(it)">調理済み</button>
-              <button class="btn ghost" @click="toPending(it)">戻す</button>
-              <button class="btn danger" @click="cancel(it)">キャンセル</button>
-            </div>
+            <div class="item-name">・{{ t.name }}</div>
+            <button class="btn xs danger" @click="rollbackTo(t,'PENDING')">未調理に戻す</button>
           </div>
         </div>
       </div>
-
-      <div class="col">
-        <h3>調理済み（配膳待ち）</h3>
-        <div class="cards">
-          <div v-for="it in readyItems" :key="it.key" class="card" :class="{ late: isLate(it.order) }">
-            <div class="meta">
-              <span class="badge">#{{ it.order.id }}</span>
-              <span class="table">Table {{ it.order.table }}</span>
-              <span class="time">{{ timeFrom(it.order.createdAt) }}</span>
-              <span v-if="isLate(it.order)" class="alert">⚠ 遅延</span>
-            </div>
-            <div class="item-name">・{{ it.item.name }}</div>
-            <div class="ops">
-              <button class="btn primary" @click="toServed(it)">配膳済みにする</button>
-              <button class="btn ghost" @click="toCooking(it)">戻す</button>
-              <button class="btn danger" @click="cancel(it)">キャンセル</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== テーブル別表示 ===== -->
-    <div v-else class="board table-group-board">
-      <div class="col">
-        <h3>未着手</h3>
-        <div class="groups">
-          <div v-for="(group, t) in groupedByTable.pending" :key="'p_'+t" class="table-group">
-            <div class="table-head">Table {{ t }}</div>
-            <div class="cards">
-              <div v-for="it in group" :key="it.key" class="card" :class="{ late: isLate(it.order) }">
-                <div class="meta">
-                  <span class="badge">#{{ it.order.id }}</span>
-                  <span class="time">{{ timeFrom(it.order.createdAt) }}</span>
-                  <span v-if="isLate(it.order)" class="alert">⚠ 遅延</span>
-                </div>
-                <div class="item-name">・{{ it.item.name }}</div>
-                <div class="ops">
-                  <button class="btn primary" @click="toCooking(it)">着手（調理中へ）</button>
-                  <button class="btn danger" @click="cancel(it)">キャンセル</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col">
-        <h3>調理中</h3>
-        <div class="groups">
-          <div v-for="(group, t) in groupedByTable.cooking" :key="'c_'+t" class="table-group">
-            <div class="table-head">Table {{ t }}</div>
-            <div class="cards">
-              <div v-for="it in group" :key="it.key" class="card" :class="{ late: isLate(it.order) }">
-                <div class="meta">
-                  <span class="badge">#{{ it.order.id }}</span>
-                  <span class="time">{{ timeFrom(it.order.createdAt) }}</span>
-                  <span v-if="isLate(it.order)" class="alert">⚠ 遅延</span>
-                </div>
-                <div class="item-name">・{{ it.item.name }}</div>
-                <div class="ops">
-                  <button class="btn primary" @click="toReady(it)">調理済み</button>
-                  <button class="btn ghost" @click="toPending(it)">戻す</button>
-                  <button class="btn danger" @click="cancel(it)">キャンセル</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col">
-        <h3>調理済み（配膳待ち）</h3>
-        <div class="groups">
-          <div v-for="(group, t) in groupedByTable.ready" :key="'r_'+t" class="table-group">
-            <div class="table-head">Table {{ t }}</div>
-            <div class="cards">
-              <div v-for="it in group" :key="it.key" class="card" :class="{ late: isLate(it.order) }">
-                <div class="meta">
-                  <span class="badge">#{{ it.order.id }}</span>
-                  <span class="time">{{ timeFrom(it.order.createdAt) }}</span>
-                  <span v-if="isLate(it.order)" class="alert">⚠ 遅延</span>
-                </div>
-                <div class="item-name">・{{ it.item.name }}</div>
-                <div class="ops">
-                  <button class="btn primary" @click="toServed(it)">配膳済みにする</button>
-                  <button class="btn ghost" @click="toCooking(it)">戻す</button>
-                  <button class="btn danger" @click="cancel(it)">キャンセル</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
-import {
-  loadOrders, updateItem, resetOrders,
-  getAllCategories, loadCategoryFilter, saveCategoryFilter
-} from "@/lib/dummy/orders";
+import { onMounted, ref, computed } from "vue";
+import api from "@/lib/api";
+import { useSocket } from "@/lib/socket";
 
-const list = ref(loadOrders());
-
-/* ===== Kitchen専用 表示モード保存 ===== */
-const VIEW_KEY = "pos_kitchen_view_mode"; // 'time' | 'table'
+const VIEW_KEY = "pos_kitchen_view_mode";
+const FILTER_KEY = "pos_filter_kitchen";
 const viewMode = ref(localStorage.getItem(VIEW_KEY) || "time");
 const persistViewMode = () => localStorage.setItem(VIEW_KEY, viewMode.value);
 
-/* ===== カテゴリフィルタ（Kitchen専用） ===== */
-const categories = ref(getAllCategories());
-const categoryMap = reactive({});
-function initFilterMap(){
-  const saved = loadCategoryFilter("kitchen");
-  for (const c of categories.value) categoryMap[c] = saved?.[c] ?? true;
-}
-function persistFilter(){
-  const out = {}; for (const c of categories.value) out[c] = !!categoryMap[c];
-  saveCategoryFilter("kitchen", out);
-}
-function selectAll(v){ for(const c of categories.value) categoryMap[c]=!!v; persistFilter(); }
+const tickets = ref([]);
+const categories = ref(["food","drink","dessert","default"]);
+const categoryMap = ref(Object.fromEntries(categories.value.map(c => [c, true])));
 
-/* ===== 共通 util ===== */
-function isLate(order){
-  const passedMin = Math.floor((Date.now()-order.createdAt)/60000);
-  return passedMin > (order.slaMin || 15);
-}
+function persistFilter(){ localStorage.setItem(FILTER_KEY, JSON.stringify(categoryMap.value)); }
+function selectAll(b){ for (const k in categoryMap.value) categoryMap.value[k] = b; persistFilter(); }
+
 function timeFrom(ts){
-  const d = new Date(ts);
-  return d.toTimeString().slice(0,5); // HH:MM
+  if (!ts) return "-";
+  const d = new Date(ts); return d.toTimeString().slice(0,5);
 }
 
-/* ===== item をフラット化（カテゴリ適用） ===== */
-const flatItems = computed(()=>{
-  const arr=[];
-  for(const o of list.value){
-    (o.items||[]).forEach((it,idx)=>{
-      const cat = it.category || "未分類";
-      if (categoryMap[cat] ?? true){
-        arr.push({ key:`${o.id}_${idx}`, order:o, item:it, orderId:o.id, itemIndex:idx });
-      }
-    });
-  }
-  // 時間順の安定ソート（createdAt 昇順）
-  return arr.sort((a,b)=> a.order.createdAt - b.order.createdAt);
+async function reload(){
+  const { data } = await api.get("/api/tickets?role=kitchen");
+  tickets.value = data || [];
+  // カテゴリ一覧を更新
+  const set = new Set(categories.value);
+  for (const t of tickets.value) set.add(t.category || "default");
+  categories.value = Array.from(set);
+  const saved = localStorage.getItem(FILTER_KEY);
+  if (saved) Object.assign(categoryMap.value, JSON.parse(saved));
+}
+
+async function mark(t, action){
+  await api.post(`/api/tickets/${t._id}/status`, { action });
+  await reload(); // Socketでも更新されるが即時UXのため
+}
+
+const filtered = computed(()=> tickets.value.filter(t => (categoryMap.value[t.category] ?? true)));
+const working = computed(()=> filtered.value.filter(t => ["PENDING","COOKING"].includes(t.status)));
+const ready    = computed(()=> filtered.value.filter(t => t.status==="READY"));
+
+onMounted(async ()=>{
+  await reload();
+  const sock = useSocket();
+  sock.emit("joinStore", import.meta.env.VITE_DEV_STORE_ID);
+  sock.on("ticket:created", () => reload());
+  sock.on("ticket:updated", () => reload());
 });
 
-const pendingItems = computed(()=> flatItems.value.filter(x=>x.item.status==='pending'));
-const cookingItems = computed(()=> flatItems.value.filter(x=>x.item.status==='cooking'));
-const readyItems   = computed(()=> flatItems.value.filter(x=>x.item.status==='ready'));
-
-/* ===== テーブル別グループ ===== */
-function groupByTable(items){
-  const map = {};
-  for(const it of items){
-    const t = it.order.table || "-";
-    (map[t] ||= []).push(it);
-  }
-  // テーブル番号順ソート（A1, A2, B1… のような文字列でもOKな単純昇順）
-  return Object.fromEntries(Object.entries(map).sort(([a],[b])=> a.localeCompare(b,'ja')));
+async function rollbackTo(t, to){
+  await api.post(`/api/tickets/${t._id}/status`, { action: "rollback", to });
+  await reload();
 }
-const groupedByTable = computed(()=> ({
-  pending: groupByTable(pendingItems.value),
-  cooking: groupByTable(cookingItems.value),
-  ready:   groupByTable(readyItems.value),
-}));
-
-/* ===== 状態遷移 ===== */
-function toPending(x){ updateItem(x.orderId,x.itemIndex, it=>it.status='pending');  reload(); }
-function toCooking(x){ updateItem(x.orderId,x.itemIndex, it=>it.status='cooking');  reload(); }
-function toReady(x){   updateItem(x.orderId,x.itemIndex, it=>it.status='ready');    reload(); }
-function toServed(x){  updateItem(x.orderId,x.itemIndex, it=>it.status='served');   reload(); }
-function cancel(x){    updateItem(x.orderId,x.itemIndex, it=>it.status='canceled'); reload(); }
-
-/* ===== 同期 ===== */
-function reload(){ list.value = loadOrders(); }
-function reset(){
-  resetOrders(); reload();
-  categories.value = getAllCategories();
-  initFilterMap();
-}
-let t; onMounted(()=>{ initFilterMap(); t=setInterval(reload,1000); });
-onUnmounted(()=> clearInterval(t));
 </script>
 
 <style src="../../styles/pages/KitchenMonitor.css"></style>

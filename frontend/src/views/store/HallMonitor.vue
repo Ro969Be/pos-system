@@ -4,21 +4,6 @@
       <h2>ホールモニター</h2>
       <div class="hmon-actions">
         <button class="btn ghost" @click="reload">再読み込み</button>
-        <button class="btn danger" @click="reset">初期データに戻す</button>
-      </div>
-    </div>
-
-    <!-- Hall 専用カテゴリフィルタ -->
-    <div class="filterbar">
-      <div class="filter-controls">
-        <label v-for="c in categories" :key="c" class="check">
-          <input type="checkbox" v-model="categoryMap[c]" @change="persistFilter"/>
-          <span>{{ c }}</span>
-        </label>
-      </div>
-      <div class="filter-ops">
-        <button class="btn xs" @click="selectAll(true)">全選択</button>
-        <button class="btn xs" @click="selectAll(false)">全解除</button>
       </div>
     </div>
 
@@ -26,20 +11,21 @@
       <div class="col">
         <h3>配膳待ち</h3>
         <div class="groups">
-          <div v-for="(group, t) in groupedByTable.ready" :key="'r_'+t" class="table-group">
+          <div v-for="(group, t) in groupedReady" :key="'r_'+t" class="table-group">
             <div class="table-head">Table {{ t }}</div>
             <div class="cards">
-              <div v-for="it in group" :key="it.key" class="card" :class="{ late: isLate(it.order) }">
+              <div v-for="it in group" :key="it._id" class="card" :class="it.alert">
                 <div class="meta">
-                  <span class="badge">#{{ it.order.id }}</span>
-                  <span class="time">{{ timeFrom(it.order.createdAt) }}</span>
-                  <span v-if="isLate(it.order)" class="alert">⚠ 遅延</span>
+                  <span class="badge">#{{ it.orderId?.slice(-6) }}</span>
+                  <span class="time">{{ timeFrom(it.timestamps?.createdAt) }}</span>
+                  <span v-if="it.alert!=='none'" class="alert">⚠ {{ it.alert }}</span>
                 </div>
-                <div class="item-name">・{{ it.item.name }}</div>
+                <div class="item-name">・{{ it.name }}</div>
                 <div class="ops">
-                  <button class="btn primary" @click="toServed(it)">配膳済みにする</button>
-                  <button class="btn ghost" @click="toCooking(it)">戻す</button>
-                  <button class="btn danger" @click="cancel(it)">キャンセル</button>
+                  <!-- ✅ 配膳操作はホールのみ -->
+                  <button class="btn xs" @click="serve(it)">配膳済みにする</button>
+                  <!-- ✅ READY→READY は無意味なので削除、READY→PENDING のみ提供 -->
+                  <button class="btn xs danger" @click="rollbackTo(it,'PENDING')">未調理に戻す</button>
                 </div>
               </div>
             </div>
@@ -48,102 +34,72 @@
       </div>
 
       <div class="col">
-        <h3>配膳済み</h3>
-        <div class="groups">
-          <div v-for="(group, t) in groupedByTable.served" :key="'s_'+t" class="table-group">
-            <div class="table-head">Table {{ t }}</div>
-            <div class="cards">
-              <div v-for="it in group" :key="it.key" class="card">
-                <div class="meta">
-                  <span class="badge">#{{ it.order.id }}</span>
-                  <span class="time">{{ timeFrom(it.order.createdAt) }}</span>
-                </div>
-                <div class="item-name">・{{ it.item.name }}</div>
-                <div class="ops">
-                  <button class="btn ghost" @click="toReady(it)">配膳待ちに戻す</button>
-                </div>
-              </div>
+        <h3>配膳済み（最近）</h3>
+        <div class="cards">
+          <div v-for="t in servedRecent" :key="t._id" class="card">
+            <div class="meta">
+              <span class="badge">#{{ t.orderId?.slice(-6) }}</span>
+              <span class="time">{{ timeFrom(t.timestamps?.createdAt) }}</span>
+            </div>
+            <div class="item-name">・{{ t.name }}</div>
+            <div class="ops">
+              <!-- ✅ 戻しはホールのみ：SERVED→READY / PENDING -->
+              <button class="btn xs ghost" @click="rollbackTo(t,'READY')">未配膳に戻す</button>
+              <button class="btn xs danger" @click="rollbackTo(t,'PENDING')">未調理に戻す</button>
             </div>
           </div>
         </div>
       </div>
-
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
-import {
-  loadOrders, updateItem, resetOrders,
-  getAllCategories, loadCategoryFilter, saveCategoryFilter
-} from "@/lib/dummy/orders";
+import { ref, computed, onMounted } from "vue";
+import api from "@/lib/api";
+import { useSocket } from "@/lib/socket";
 
-const list = ref(loadOrders());
+const tickets = ref([]);
 
-/* Hall 専用フィルタ */
-const categories = ref(getAllCategories());
-const categoryMap = reactive({});
-function initFilterMap(){
-  const saved = loadCategoryFilter("hall");
-  for (const c of categories.value) categoryMap[c] = saved?.[c] ?? true;
-}
-function persistFilter(){
-  const out = {}; for (const c of categories.value) out[c] = !!categoryMap[c];
-  saveCategoryFilter("hall", out);
-}
-function selectAll(v){ for(const c of categories.value) categoryMap[c]=!!v; persistFilter(); }
-
-/* 共通 util */
-function isLate(order){
-  const passedMin = Math.floor((Date.now()-order.createdAt)/60000);
-  return passedMin > (order.slaMin || 15);
-}
 function timeFrom(ts){
+  if (!ts) return "-";
   const d = new Date(ts); return d.toTimeString().slice(0,5);
 }
 
-/* itemフラット化 + カテゴリ適用 */
-const flatItems = computed(()=>{
-  const arr=[]; for(const o of list.value){
-    (o.items||[]).forEach((it,idx)=>{
-      const cat = it.category || "未分類";
-      if (categoryMap[cat] ?? true){
-        arr.push({ key:`${o.id}_${idx}`, order:o, item:it, orderId:o.id, itemIndex:idx });
-      }
-    });
-  }
-  // テーブル枠内の並びは createdAt 昇順で安定
-  return arr.sort((a,b)=> a.order.createdAt - b.order.createdAt);
-});
+async function reload(){
+  const { data } = await api.get("/api/tickets?role=hall");
+  tickets.value = data || [];
+}
+async function serve(t){
+  await api.post(`/api/tickets/${t._id}/status`, { action: "serve" });
+  await reload();
+}
+async function rollbackTo(t, to){
+  await api.post(`/api/tickets/${t._id}/status`, { action: "rollback", to });
+  await reload();
+}
 
-const readyItems  = computed(()=> flatItems.value.filter(x=>x.item.status==='ready'));
-const servedItems = computed(()=> flatItems.value.filter(x=>x.item.status==='served'));
+const ready  = computed(()=> tickets.value.filter(t => t.status==="READY"));
+const served = computed(()=> tickets.value.filter(t => t.status==="SERVED"));
+const servedRecent = computed(()=> served.value.slice(-20).reverse());
 
 function groupByTable(items){
-  const map={}; for(const it of items){ const t=it.order.table||"-"; (map[t] ||= []).push(it); }
-  return Object.fromEntries(Object.entries(map).sort(([a],[b])=> a.localeCompare(b,'ja')));
+  const map = {};
+  for (const it of items) {
+    const key = it.tableId ?? "-";
+    (map[key] ||= []).push(it);
+  }
+  return map;
 }
-const groupedByTable = computed(()=> ({
-  ready:  groupByTable(readyItems.value),
-  served: groupByTable(servedItems.value),
-}));
+const groupedReady = computed(()=> groupByTable(ready.value));
 
-/* 状態遷移 */
-function toReady(x){   updateItem(x.orderId,x.itemIndex, it=>it.status='ready');   reload(); }
-function toCooking(x){ updateItem(x.orderId,x.itemIndex, it=>it.status='cooking'); reload(); }
-function toServed(x){  updateItem(x.orderId,x.itemIndex, it=>it.status='served');  reload(); }
-function cancel(x){    updateItem(x.orderId,x.itemIndex, it=>it.status='canceled');reload(); }
-
-/* 同期 */
-function reload(){ list.value = loadOrders(); }
-function reset(){
-  resetOrders(); reload();
-  categories.value = getAllCategories();
-  initFilterMap();
-}
-let t; onMounted(()=>{ initFilterMap(); t=setInterval(reload,1000); });
-onUnmounted(()=> clearInterval(t));
+onMounted(async ()=>{
+  await reload();
+  const sock = useSocket();
+  sock.emit("joinStore", import.meta.env.VITE_DEV_STORE_ID);
+  sock.on("ticket:created", () => reload());
+  sock.on("ticket:updated", () => reload());
+});
 </script>
 
 <style src="../../styles/pages/HallMonitor.css"></style>
