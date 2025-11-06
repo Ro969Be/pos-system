@@ -1,37 +1,62 @@
+// backend/server.js
 import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
+import http from "http";
+import { Server as SocketIOServer } from "socket.io";
+
 import { connectDB } from "./db.js";
 import router from "./src/routes/index.js";
 import { notFound, errorHandler } from "./src/middleware/error.js";
 
 const app = express();
 
+// CORS
+const origins = process.env.CORS_ORIGIN?.split(",").map((s) => s.trim());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN?.split(",") ?? true,
+    origin: origins?.length ? origins : true,
     credentials: true,
   })
 );
 
 app.use(express.json());
-
 app.use(morgan("dev"));
 
-app.get("/", (req, res) => res.send("Backend API working!"));
-
+// health
+app.get("/", (_req, res) => res.send("Backend API working!"));
+// API
 app.use("/api", router);
 
+// error handlers
 app.use(notFound);
 app.use(errorHandler);
+
+// --- Socket.IO (HTTPサーバ経由で初期化)
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+  cors: { origin: origins?.length ? origins : true },
+});
+
+// どこからでも emit できるよう app.locals に載せる
+app.locals.io = io;
+
+io.on("connection", (socket) => {
+  console.log("🔌 socket connected:", socket.id);
+  socket.on("disconnect", () =>
+    console.log("🔌 socket disconnected:", socket.id)
+  );
+});
 
 const PORT = process.env.PORT || 5000;
 connectDB(process.env.MONGO_URI)
   .then(() => {
-    app.listen(PORT, () => console.log(`✅ Server http://localhost:${PORT}`));
+    server.listen(PORT, () =>
+      console.log(`✅ Server http://localhost:${PORT}`)
+    );
   })
   .catch((err) => {
     console.error("❌ Mongo connection error:", err);

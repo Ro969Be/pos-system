@@ -79,6 +79,9 @@ export async function createReservation(req, res, next) {
     });
 
     res.status(201).json(doc);
+    try {
+      req.app.locals.io?.emit("reservation:created", doc);
+    } catch {}
   } catch (e) {
     next(e);
   }
@@ -199,6 +202,9 @@ export async function updateReservation(req, res, next) {
     ).lean();
 
     res.json(doc);
+    try {
+      req.app.locals.io?.emit("reservation:updated", doc);
+    } catch {}
   } catch (e) {
     next(e);
   }
@@ -216,6 +222,9 @@ export async function cancelReservation(req, res, next) {
     ).lean();
     if (!doc) return res.status(404).json({ message: "Reservation not found" });
     res.json({ ok: true });
+    try {
+      req.app.locals.io?.emit("reservation:cancelled", { _id: id, storeId });
+    } catch {}
   } catch (e) {
     next(e);
   }

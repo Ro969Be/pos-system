@@ -82,6 +82,23 @@ export async function updateTicketStatus(req, res, next) {
     }
 
     await t.save();
+
+    try {
+      const io = req.app.locals.io;
+      io?.emit("ticket:updated", {
+        _id: t._id,
+        status: t.status,
+        timestamps: t.timestamps,
+        orderId: t.orderId,
+        storeId: t.storeId,
+        tableId: t.tableId,
+        menuItemId: t.menuItemId,
+        name: t.name,
+        category: t.category,
+        qty: t.qty,
+      });
+    } catch {}
+
     res.json(t);
   } catch (e) {
     next(e);
