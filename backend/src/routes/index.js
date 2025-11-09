@@ -7,6 +7,9 @@ import reservation from "./reservation.routes.js";
 import orders from "./orders.routes.js";
 import tickets from "./tickets.routes.js";
 import tables from "./tables.routes.js";
+import business from "./business.routes.js";
+import staff from "./staff.routes.js";
+import storeconfig from "./storeconfig.routes.js";
 
 const r = Router();
 r.use("/auth", auth);
@@ -17,5 +20,8 @@ r.use("/reservations", reservation);
 r.use("/orders", orders);
 r.use("/tickets", tickets);
 r.use("/tables", tables);
+r.use("/business", business);
+r.use("/staffs", staff);
+r.use("/storeconfig", storeconfig);
 
 export default r;

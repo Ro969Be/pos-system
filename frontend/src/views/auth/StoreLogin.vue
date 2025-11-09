@@ -1,31 +1,39 @@
 <!-- frontend/src/views/auth/StoreLogin.vue -->
 <template>
   <section class="page">
-    <h2>店舗様ログイン</h2>
+    <h2>お店ログイン</h2>
     <form class="panel" @submit.prevent="onSubmit">
-      <label class="field"><span>メール</span><input v-model="email" type="email" required /></label>
-      <label class="field"><span>パスワード</span><input v-model="password" type="password" required /></label>
+      <label class="field">
+        <span>お店ログインID</span>
+        <input v-model="loginId" required />
+      </label>
+      <label class="field">
+        <span>パスワード</span>
+        <input v-model="password" type="password" required />
+      </label>
       <div class="ops">
         <router-link class="btn ghost" to="/public/shops">戻る</router-link>
-        <button class="btn" type="submit" :disabled="loading">{{ loading ? 'ログイン中...' : 'ログイン' }}</button>
+        <button class="btn" type="submit" :disabled="loading">
+          {{ loading ? 'ログイン中...' : 'ログイン' }}
+        </button>
       </div>
       <p v-if="err" class="err">{{ err }}</p>
     </form>
-    <p class="sub">店舗様向けアカウントをお持ちでない方は
-      <router-link to="/store-auth/register">新規登録</router-link>
-    </p>
+    <p class="sub">※ ログイン後に所属店舗の一覧が表示されます。</p>
   </section>
 </template>
 
 <script setup>
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { login, currentUser } from "@/lib/auth";
+import { businessLogin, selectStore } from "@/lib/storeAuth";
 import { joinStore } from "@/lib/socket";
 
 const router = useRouter();
 const route = useRoute();
-const email = ref("");
+
+// ▼ ここを修正：loginId を使う（emailは不要）
+const loginId = ref("");        // 例: "demo" と入れておくとテスト楽です
 const password = ref("");
 const loading = ref(false);
 const err = ref("");
@@ -34,14 +42,23 @@ async function onSubmit() {
   err.value = "";
   loading.value = true;
   try {
-    const user = await login(email.value, password.value);
-    // Socket 参加
-    joinStore(user?.store?.id);
-    // リダイレクト
-    const next = route.query.next || "/store/dashboard";
-    router.push(String(next));
+    // ▼ ここを修正：businessLogin(loginId, password)
+    const stores = await businessLogin(loginId.value, password.value);
+
+    if (!stores || stores.length === 0) {
+      throw new Error("店舗が見つかりません");
+    }
+    if (stores.length === 1) {
+      const s = stores[0];
+      await selectStore(s.id);
+      joinStore(s.id);
+      router.push("/store/settings");
+    } else {
+      sessionStorage.setItem("biz.stores", JSON.stringify(stores));
+      router.push("/store-auth/select");
+    }
   } catch (e) {
-    err.value = e?.response?.data?.message || "ログインに失敗しました";
+    err.value = e?.response?.data?.message || e?.message || "ログインに失敗しました";
   } finally {
     loading.value = false;
   }

@@ -42,3 +42,31 @@ export function requireRole(...roles) {
     next();
   };
 }
+
+export function requireBusinessAuth(req, res, next) {
+  try {
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+    if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // businessログインのトークンには businessId が入っている想定
+    if (!payload?.businessId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    // 役割チェック（必要に応じて緩めてもOK）
+    if (!["owner", "admin"].includes(payload.role)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // 後段で使えるように
+    req.user = {
+      businessId: payload.businessId,
+      role: payload.role,
+      // 店舗はまだ選択していないので storeId は無し
+    };
+    next();
+  } catch (e) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+}

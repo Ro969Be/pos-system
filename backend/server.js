@@ -1,6 +1,8 @@
 // backend/server.js
 import dotenv from "dotenv";
 dotenv.config();
+console.log("ENV DEV_BYPASS_AUTH =", process.env.DEV_BYPASS_AUTH);
+console.log("ENV DEV_STORE_ID    =", process.env.DEV_STORE_ID);
 
 import express from "express";
 import cors from "cors";
