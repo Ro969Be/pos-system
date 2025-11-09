@@ -1,14 +1,28 @@
+/* frontned/src/styles/pages/Profile.css */
 .page.prof {
     padding: 16px;
+
+    /* ✅ スマホ幅での横スクロール抑止 */
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
-.cards {
+/* ===== カード群 ===== */
+.page.prof .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 12px;
 }
 
-.card {
+/* ✅ はみ出し防止（幅を100%に固定） */
+.page.prof .card,
+.page.prof .panel {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.page.prof .card {
     background: #0f1522;
     border: 1px solid #1f2636;
     border-radius: 12px;
@@ -16,65 +30,75 @@
     color: #d5dbea;
 }
 
-.card.link {
+.page.prof .card.link {
     text-decoration: none;
 }
 
-.panel {
+.page.prof .panel {
     background: #0f1522;
     border: 1px solid #1f2636;
     border-radius: 12px;
     padding: 14px;
 }
 
-.field {
+/* ===== フォーム ===== */
+.page.prof .field {
     display: flex;
     flex-direction: column;
     gap: 6px;
     margin-bottom: 10px;
 }
 
-.field span {
+.page.prof .field span {
     color: #cfd6e3;
     font-size: .9rem;
 }
 
-.field input,
-.field select {
+.page.prof .field input,
+.page.prof .field select {
     background: #0b1220;
     color: #d5dbea;
     border: 1px solid #28324a;
     border-radius: 10px;
     padding: 8px 10px;
+    width: 100%;
+    /* ✅ 親幅に合わせる */
+    max-width: 100%;
+    /* ✅ はみ出し防止 */
 }
 
-.grid2 {
+/* ===== レイアウトグリッド ===== */
+.page.prof .grid2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
 }
 
-.grid3 {
+.page.prof .grid3 {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 10px;
 }
 
-@media(max-width:920px) {
+/* スマホ時は1列 */
+@media (max-width: 920px) {
 
-    .grid2,
-    .grid3 {
+    .page.prof .grid2,
+    .page.prof .grid3 {
         grid-template-columns: 1fr;
     }
 }
 
-.ops {
+/* 操作系 */
+.page.prof .ops {
     display: flex;
     gap: 8px;
     margin-top: 10px;
+    flex-wrap: wrap;
+    /* ✅ 狭い幅で折り返す */
 }
 
-.btn {
+.page.prof .btn {
     background: #3b82f6;
     color: #fff;
     border: none;
@@ -83,21 +107,47 @@
     cursor: pointer;
 }
 
-.btn.ghost {
+.page.prof .btn.ghost {
     background: #182033;
     color: #d5dbea;
     border: 1px solid #28324a;
 }
 
-.subt {
+.page.prof .subt {
     margin: 10px 0 6px;
     color: #e5e7eb;
 }
 
-.switch {
+.page.prof .switch {
     display: flex;
     gap: 8px;
     align-items: center;
     margin: 10px 0;
     color: #cfd6e3;
+}
+
+/* ===== さらに小さい幅の最終ガード ===== */
+@media (max-width: 480px) {
+    .page.prof {
+        padding: 12px;
+    }
+
+    .page.prof .panel,
+    .page.prof .card {
+        padding: 10px;
+    }
+
+    .page.prof .cards {
+        grid-template-columns: 1fr;
+    }
+
+    /* 長いラベルでのはみ出し対策 */
+    .page.prof .field span {
+        word-break: keep-all;
+    }
+
+    .page.prof .panel,
+    .page.prof .card {
+        overflow-x: hidden;
+    }
 }

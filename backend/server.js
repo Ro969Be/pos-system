@@ -11,6 +11,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { connectDB } from "./db.js";
 import router from "./src/routes/index.js";
 import { notFound, errorHandler } from "./src/middleware/error.js";
+import accountRoutes from "./src/routes/account.routes.js";
 
 const app = express();
 
@@ -30,6 +31,8 @@ app.use(morgan("dev"));
 app.get("/", (_req, res) => res.send("Backend API working!"));
 // API
 app.use("/api", router);
+
+app.use("/api/account", accountRoutes);
 
 // error handlers
 app.use(notFound);

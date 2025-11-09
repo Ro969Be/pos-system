@@ -69,6 +69,7 @@
 import { onMounted, ref, computed } from "vue";
 import api from "@/lib/api";
 import { useSocket } from "@/lib/socket";
+import { currentUser } from "@/lib/auth";
 
 const VIEW_KEY = "pos_kitchen_view_mode";
 const FILTER_KEY = "pos_filter_kitchen";
@@ -110,7 +111,8 @@ const ready    = computed(()=> filtered.value.filter(t => t.status==="READY"));
 onMounted(async ()=>{
   await reload();
   const sock = useSocket();
-  sock.emit("joinStore", import.meta.env.VITE_DEV_STORE_ID);
+  sock.emit("joinStore", currentUser.value?.store?.id);
+  // sock.emit("joinStore", import.meta.env.VITE_DEV_STORE_ID);
   sock.on("ticket:created", () => reload());
   sock.on("ticket:updated", () => reload());
 });

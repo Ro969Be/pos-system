@@ -43,12 +43,12 @@ const password = ref("");
 function loginEmail() {
   // TODO: API連携。今はダミーでトップへ
   alert(`メールログイン（ダミー）: ${email.value}`);
-  router.push("/public/top");
+  router.push("/public/shops");
 }
 function loginLine() {
   // TODO: LINEログイン開始。今はダミーでトップへ
   alert("LINEログイン開始（ダミー）");
-  router.push("/public/top");
+  router.push("/public/shops");
 }
 </script>
 

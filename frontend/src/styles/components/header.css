@@ -6,6 +6,9 @@
     padding: 0 16px;
     background: #0f1522;
     border-bottom: 1px solid #1f2636;
+    position: sticky;
+    top: 0;
+    z-index: 2000;
 }
 
 .left {
@@ -34,7 +37,15 @@
     background: #1b2333;
 }
 
-/* User dropdown */
+/* 注文履歴の表示切替 */
+.order-link .only-icon {
+    display: none;
+}
+
+.order-link .only-text {
+    display: inline;
+}
+
 .user-dd {
     position: relative;
 }
@@ -51,7 +62,7 @@
     cursor: pointer;
 }
 
-.user-dd .menu {
+.user-dd .dd {
     position: absolute;
     right: 0;
     top: calc(100% + 6px);
@@ -60,10 +71,10 @@
     border: 1px solid #273146;
     border-radius: 10px;
     padding: 6px;
-    z-index: 1000;
+    z-index: 4000;
 }
 
-.user-dd .item {
+.dd-item {
     width: 100%;
     text-align: left;
     padding: 8px 10px;
@@ -72,18 +83,19 @@
     color: #e5e7eb;
     border: 1px solid #1f2a3d;
     cursor: pointer;
+    display: block;
 }
 
-.user-dd .item+.item {
+.dd-item+.dd-item {
     margin-top: 6px;
 }
 
-.user-dd .item.danger {
+.dd-item.danger {
     color: #ff6b6b;
     border-color: #3a2426;
 }
 
-/* ハンバーガーは <960px だけ表示 */
+/* ハンバーガー */
 .icon-btn.burger {
     display: inline-flex;
     align-items: center;
@@ -102,49 +114,118 @@
     }
 }
 
-/* ギア */
-.icon-btn.gear {
-    display: inline-flex;
+/* 検索 */
+.search {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    gap: 8px;
+}
+
+.search input {
+    min-width: 260px;
+    padding: 8px 10px;
     border: 1px solid #273146;
-    background: #121a2b;
+    border-radius: 6px;
+    background: #0b1220;
     color: #e5e7eb;
 }
 
-/* 基本：ヘッダーが1行に収まらない場合は2段に折り返しを許可 */
-.app-header {
-    flex-wrap: wrap;
-    position: sticky;
-    top: 0;
-    z-index: 2000;
-}
-
-/* 縦表示になってしまうリンク（注文履歴など）の修正 */
-.app-header .hd-link {
-    writing-mode: initial;
-    /* ← デフォルト: 横書き */
+.search-btn {
+    padding: 8px 10px;
+    border: 1px solid #273146;
+    background: #1b2333;
+    color: #e5e7eb;
+    border-radius: 6px;
     white-space: nowrap;
-    /* ← 折り返さないように */
 }
 
-/* --- 幅1080px以下での2段構造 --- */
-@media (max-width: 1080px) {
+/* カート */
+.cart-wrap {
+    position: relative;
+}
+
+.cart-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    background: #fff;
+    color: #111;
+    border: 1px solid #ddd;
+    border-radius: 999px;
+    padding: 6px 10px;
+}
+
+.cart-chip .count {
+    font-weight: 700;
+}
+
+.cart-chip .total {
+    font-variant-numeric: tabular-nums;
+}
+
+.cart-dd {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: 280px;
+    background: #0f1522;
+    color: #e5e7eb;
+    border: 1px solid #273146;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+    padding: 12px;
+    z-index: 5000;
+}
+
+.cart-dd .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 14px;
+}
+
+.cart-dd .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.cart-dd .ghost,
+.cart-dd .primary {
+    flex: 1;
+    text-align: center;
+    padding: 8px 10px;
+    border-radius: 8px;
+    text-decoration: none;
+}
+
+.cart-dd .ghost {
+    border: 1px solid #273146;
+    background: #0f1522;
+    color: #e5e7eb;
+}
+
+.cart-dd .primary {
+    border: none;
+    background: #3b82f6;
+    color: #fff;
+    font-weight: 700;
+}
+
+/* 幅1080px以下：検索を2段目扱い + カートの金額を省略 */
+@media (max-width:1080px) {
     .app-header {
+        flex-wrap: wrap;
         gap: 8px;
     }
 
-    /* 検索フォームを2段目全幅で表示 */
     .app-header .search {
         order: 2;
         flex: 1 1 100%;
         min-width: 0;
     }
 
-    /* 右メニューを3段目に寄せる */
     .app-header .right {
         order: 3;
         width: auto;
@@ -153,59 +234,203 @@
         gap: 6px;
     }
 
-    /* カートの金額文字は省略（潰れ防止） */
-    .app-header .cart-chip .total {
-        display: none;
-    }
-
-    .app-header .header-inner {
-        display: flex;
-        flex-wrap: wrap;               /* 必要に応じて2段レイアウト */
-        align-items: center;           /* 上下中央寄せ */
-        justify-content: space-between;
-        height: auto;                  /* 固定高さを解除して自然な高さに */
-        padding: 8px 16px;
-    }
-
-    .app-header .search-wrap {
-        flex: 1 1 100%;
-        /* 1段目・全幅に */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 8px;
-    }
-    .app-header .right-actions {
-        display: flex;
-        align-items: center;
-        /* 上下中央に固定 */
-        gap: 12px;
-        flex: 1 1 100%;
-        /* 次の行で中央揃えに */
-        justify-content: center;
-    }
-
-    .app-header .cart-icon {
-        display: flex;
-        align-items: center;
-    }
-}
-
-/* --- 幅880px以下で注文履歴の文字を隠す（アイコン優先） --- */
-@media (max-width: 880px) {
-    .app-header .hd-link {
+    .cart-chip .total {
         display: none;
     }
 }
 
-/* --- さらに幅640px以下の最小対応 --- */
-@media (max-width: 640px) {
-    .app-header .search input {
+/* 幅880px以下：注文履歴はアイコンのみ（非表示にしない） */
+@media (max-width:880px) {
+    .order-link .only-icon {
+        display: inline;
+    }
+
+    .order-link .only-text {
+        display: none;
+    }
+}
+
+/* 幅640px以下：検索幅の最小化 */
+@media (max-width:640px) {
+    .search input {
         min-width: 120px;
     }
 
     .app-header .burger {
         width: 34px;
         height: 34px;
+    }
+}
+
+/* 追加: PC/タブレット共通の安定化（リンクの折返し抑止） */
+.hd-link {
+    white-space: nowrap;
+}
+
+/* PAD以下：店舗様はこちら を隠す */
+@media (max-width: 960px) {
+    .right .hd-link[href="/store-auth/login"] {
+        /* 店舗様はこちら */
+        display: none;
+    }
+}
+
+/* スマホ：ヘッダー右側を一旦全部隠して、必要なものだけ戻す */
+@media (max-width: 640px) {
+    .right>* {
+        display: none;
+    }
+
+    /* 注文履歴（アイコン表示対応）とカート、ユーザー画像（またはアイコン）は表示 */
+    .right .order-link,
+    .right .cart-wrap,
+    .right .user-wrap {
+        display: inline-flex;
+    }
+
+    /* 注文履歴はアイコンだけ（already in your CSS at 880px; keep this as well） */
+    .order-link .only-icon {
+        display: inline;
+    }
+
+    .order-link .only-text {
+        display: none;
+    }
+
+    /* カートの金額テキストは省略（潰れ防止） */
+    .cart-chip .total {
+        display: none;
+    }
+}
+
+/* ===== ユーザーメニュー（アイコン→DD） ===== */
+.user-wrap {
+    position: relative;
+}
+
+.user-chip.icon-only {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    cursor: pointer;
+    background: #121a2b;
+    border: 1px solid #273146;
+    color: #e5e7eb;
+}
+
+.user-chip .avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 999px;
+    display: block;
+}
+
+.user-dd {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    min-width: 220px;
+    background: #0f1522;
+    color: #e5e7eb;
+    border: 1px solid #273146;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+    padding: 8px;
+    z-index: 4500;
+}
+
+.user-dd__head {
+    padding: 6px 8px 8px;
+    border-bottom: 1px solid #1f2a3d;
+    margin-bottom: 6px;
+}
+
+.user-dd__head .nm {
+    display: block;
+    font-weight: 700;
+}
+
+.user-dd__head .mail {
+    display: block;
+    font-size: 12px;
+    opacity: .8;
+}
+
+/* “item” は AppHeader.vue 側のクラスに合わせる（.dd-item が残っていてもOK） */
+.user-dd .item {
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #162033;
+    color: #e5e7eb;
+    border: 1px solid #1f2a3d;
+    cursor: pointer;
+    display: block;
+    text-decoration: none;
+    margin-top: 6px;
+}
+
+.user-dd .item.danger {
+    color: #ff6b6b;
+    border-color: #3a2426;
+}
+
+/* ====== 極小幅対策：DDを固定パネルにしてはみ出し防止 ====== */
+@media (max-width: 480px) {
+
+    /* カートDD：ヘッダー下に固定 */
+    .cart-wrap {
+        position: static;
+    }
+
+    .cart-dd {
+        position: fixed;
+        top: 56px;
+        /* ヘッダー高さに合わせて調整 */
+        right: 8px;
+        left: 8px;
+        width: auto;
+        max-width: none;
+        border-radius: 12px;
+        z-index: 9999;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, .35);
+    }
+
+    .cart-dd .actions {
+        flex-direction: column;
+    }
+
+    .cart-dd .ghost,
+    .cart-dd .primary {
+        width: 100%;
+    }
+
+    /* ユーザDD：同様に固定（右上寄せ） */
+    .user-wrap {
+        position: static;
+    }
+
+    .user-dd {
+        position: fixed;
+        top: 56px;
+        right: 8px;
+        left: 8px;
+        /* 端から少し余白。片側だけにしたいなら left を外す */
+        min-width: 0;
+        width: auto;
+        border-radius: 12px;
+        z-index: 9999;
+    }
+}
+
+/* さらに狭い端末での微調整 */
+@media (max-width: 360px) {
+    .cart-dd .row {
+        font-size: 13px;
     }
 }

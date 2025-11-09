@@ -58,6 +58,7 @@
 import { ref, computed, onMounted } from "vue";
 import api from "@/lib/api";
 import { useSocket } from "@/lib/socket";
+import { currentUser } from "@/lib/auth";
 
 const tickets = ref([]);
 
@@ -96,7 +97,7 @@ const groupedReady = computed(()=> groupByTable(ready.value));
 onMounted(async ()=>{
   await reload();
   const sock = useSocket();
-  sock.emit("joinStore", import.meta.env.VITE_DEV_STORE_ID);
+  sock.emit("joinStore", currentUser.value?.store?.id);
   sock.on("ticket:created", () => reload());
   sock.on("ticket:updated", () => reload());
 });

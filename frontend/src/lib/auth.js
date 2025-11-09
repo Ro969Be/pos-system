@@ -1,45 +1,50 @@
-// 権限の超シンプルな擬似ストア（後でAPI連携で差替え）
+// frontend/src/lib/auth.js
 import { reactive, computed } from "vue";
+import api from "@/lib/api";
 
-export const auth = reactive({
-  user: {
-    id: "u-001",
-    name: "Demo 店長",
-    roles: ["admin"], // 一般/店舗の違いは role で切替も可
-    permissions: [
-      "pos.view",
-      "pos.checkout",
-      "kitchen.view",
-      "hall.view",
-      "sales.view",
-    ],
-  },
-  // 一般/店舗のタブを分けたい場合などで利用可（今回は未使用でもOK）
-  mode: "public", // "public" | "store"
+const state = reactive({
+  user: null,           // { id, name, role, storeId, permissions? }
+  loading: false,
 });
 
+export const currentUser = computed(() => state.user);
+export const isLoggedIn  = computed(() => !!state.user);
+
 export function can(perm) {
-  return !!auth.user?.permissions?.includes(perm);
+  if (!state.user?.permissions) return false;
+  return state.user.permissions.includes(perm);
 }
 
-export function loginMock(name = "Demo 店長") {
-  auth.user = {
-    id: "u-001",
-    name,
-    roles: ["admin"],
-    permissions: [
-      "pos.view",
-      "pos.checkout",
-      "kitchen.view",
-      "hall.view",
-      "sales.view",
-    ],
-  };
+export async function fetchMe() {
+  try {
+    state.loading = true;
+    const { data } = await api.get("/api/auth/me");
+    state.user = data || null;
+  } catch {
+    state.user = null;
+  } finally {
+    state.loading = false;
+  }
 }
 
-export function logoutMock() {
-  auth.user = null;
+export async function login(email, password) {
+  const { data } = await api.post("/api/auth/login", { email, password });
+  if (data?.token) localStorage.setItem("token", data.token);
+  await fetchMe(); // user セット
+  return state.user;
 }
 
-export const currentUser = computed(() => auth.user);
-export const isLoggedIn = computed(() => !!auth.user);
+export function logout() {
+  localStorage.removeItem("token");
+  state.user = null;
+}
+
+export default {
+  state,
+  currentUser,
+  isLoggedIn,
+  can,
+  fetchMe,
+  login,
+  logout,
+};

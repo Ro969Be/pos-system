@@ -12,7 +12,7 @@
       </ul>
       <div class="ops">
         <router-link class="btn" to="/login">ログインへ進む</router-link>
-        <router-link class="btn ghost" to="/public/top">トップへ戻る</router-link>
+        <router-link class="btn ghost" to="/public/shops">トップへ戻る</router-link>
       </div>
     </div>
   </section>

@@ -1,3 +1,4 @@
+<!-- frontend/src/components/AppSidebar.vue -->
 <template>
   <!-- ★★ オーバーレイは App.vue でのみ描画する。ここでは出さない ★★ -->
   <aside class="sidebar" :class="[{ 'is-open': open }]">
@@ -15,11 +16,11 @@
     </nav>
 
     <div class="bottom-auth">
-      <button class="nav-link outline" @click="go('/store-auth/login')">🏬 店舗様はこちら</button>
+      <button v-if="!isLoggedIn" class="nav-link outline" @click="go('/store-auth/login')">🏬 店舗様はこちら</button>
 
       <div class="userbox" v-if="isLoggedIn">
         <button class="nav-link user" @click.stop="openUser = !openUser">
-          👤 {{ user?.name }} <span class="caret">▾</span>
+          👤 {{ user?.name || 'ユーザー' }}（{{ user?.store?.name || '店舗未設定' }}） <span class="caret">▾</span>
         </button>
         <div v-if="openUser" class="user-menu" @click.stop>
           <button class="item" @click="go('/account/profile')">プロフィール</button>
@@ -38,7 +39,8 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { auth, can, isLoggedIn, logoutMock } from "@/lib/auth";
+// ✅ 新APIに合わせて import を修正（旧: auth, logoutMock）
+import { currentUser, can, isLoggedIn, logout } from "@/lib/auth";
 import { ui, closeSidebar } from "@/lib/ui";
 
 defineProps({ open: { type: Boolean, default: false } });
@@ -46,21 +48,35 @@ defineProps({ open: { type: Boolean, default: false } });
 const route = useRoute();
 const router = useRouter();
 
-const user = computed(() => auth.user);
+// 旧: const user = computed(() => auth.user);
+// 新: currentUser は ComputedRef なのでそのまま参照
+const user = currentUser;
 
 const menus = computed(() => {
-  const all = [
+  // 全員に見せるメニュー
+  const base = [
     { label: "店舗一覧", path: "/public/shops", icon: "🏬" },
     { label: "予約", path: "/public/reservations", icon: "📅" },
     { label: "クーポン", path: "/public/coupons", icon: "🎫" },
     { label: "口コミ", path: "/public/reviews", icon: "📝" },
-    { label: "個人情報登録", path: "/public/profile/register", icon: "🧾" },
+  ];
+
+  // ✅ ログイン済みの人にだけ「プロフィール」を追加
+  if (isLoggedIn.value) {
+    base.splice(1, 0, { label: "プロフィール", path: "/account/profile", icon: "👤" });
+  }
+
+  // 権限で出し分ける店舗向けメニュー
+  const storeOnly = [
     can("kitchen.view") && { label: "キッチン", path: "/store/kitchen", icon: "🍳" },
     can("hall.view")    && { label: "ホール",   path: "/store/hall",    icon: "🛎️" },
     can("pos.view")     && { label: "レジ (POS)", path: "/store/pos",   icon: "💳" },
     can("sales.view")   && { label: "売上ダッシュボード", path: "/store/sales", icon: "📈" },
   ];
-  return all.filter(Boolean).map(m => ({ ...m, active: route.path.startsWith(m.path) }));
+
+  return [...base, ...storeOnly]
+    .filter(Boolean)
+    .map(m => ({ ...m, active: route.path.startsWith(m.path) }));
 });
 
 const go = (path) => {
@@ -69,8 +85,8 @@ const go = (path) => {
 };
 
 const openUser = ref(false);
-function doLogout(){
-  logoutMock();
+async function doLogout(){
+  await logout();            // 旧: logoutMock()
   openUser.value = false;
   router.push("/public/shops");
 }

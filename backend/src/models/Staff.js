@@ -13,7 +13,7 @@ const StaffSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     role: {
       type: String,
-      enum: ["staff", "manager", "area_manager", "owner"],
+      enum: ["staff", "manager", "area_manager", "owner", "admin"],
       default: "staff",
     },
     passwordHash: { type: String, required: true },

@@ -4,7 +4,7 @@
 
     <div v-if="cart.items.length === 0" class="empty">
       <p>カートは空です。</p>
-      <RouterLink to="/public/shops" class="btn link">お買い物を続ける</RouterLink>
+      <RouterLink to="/public/webshops" class="btn link">お買い物を続ける</RouterLink>
     </div>
 
     <div v-else class="layout">
@@ -40,7 +40,7 @@
         </div>
 
         <RouterLink to="/checkout" class="btn primary block">購入に進む</RouterLink>
-        <RouterLink to="/public/shops" class="btn ghost block">買い物を続ける</RouterLink>
+        <RouterLink to="/public/webshops" class="btn ghost block">買い物を続ける</RouterLink>
       </aside>
     </div>
   </main>
