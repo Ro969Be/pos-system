@@ -5,6 +5,7 @@ import {
   createStaff,
   updateStaff,
   deleteStaff,
+  searchUsers,
 } from "../controllers/staff.controller.js";
 const r = Router();
 r.use(requireAuth, requireRole("manager", "owner", "admin"));
@@ -12,4 +13,5 @@ r.get("/", listStaff);
 r.post("/", createStaff);
 r.patch("/:id", updateStaff);
 r.delete("/:id", deleteStaff);
+r.get("/search", searchUsers);
 export default r;

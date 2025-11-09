@@ -28,7 +28,8 @@ const err = ref("");
 function mapType(t){
   return t==="restaurant" ? "飲食店"
        : t==="salon"      ? "サロン"
-       : "WEB店舗";
+       : t==="webshop"    ? "WEB店舗"
+       : "その他";
 }
 
 onMounted(async () => {

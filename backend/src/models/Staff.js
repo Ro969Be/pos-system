@@ -1,32 +1,24 @@
+// backend/src/models/Staff.js
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
 
 const StaffSchema = new mongoose.Schema(
   {
-    storeId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Store",
-      required: true,
-    },
-    name: { type: String, required: true },
-    phone: String,
-    email: { type: String, required: true, unique: true },
+    storeId: { type: mongoose.Schema.Types.ObjectId, ref: "Store", required: true, },
+    userId:  { type: mongoose.Schema.Types.ObjectId, ref: "User",  required: true, },
+
+    // 店舗固有情報のみ保持
+    displayName: { type: String },
+    accountName: { type: String },
     role: {
       type: String,
-      enum: ["staff", "manager", "area_manager", "owner", "admin"],
+      enum: ["admin", "owner", "area_manager", "store_manager", "assistant_manager", "employee", "part_time"],
       default: "staff",
     },
-    passwordHash: { type: String, required: true },
   },
   { timestamps: true }
 );
 
-StaffSchema.methods.setPassword = async function (password) {
-  this.passwordHash = await bcrypt.hash(password, 10);
-};
-
-StaffSchema.methods.comparePassword = async function (password) {
-  return bcrypt.compare(password, this.passwordHash);
-};
+// 同一 user x store の重複を禁止
+StaffSchema.index({ storeId: 1, userId: 1 }, { unique: true });
 
 export default mongoose.model("Staff", StaffSchema);

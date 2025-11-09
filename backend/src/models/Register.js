@@ -11,7 +11,7 @@ const RegisterSchema = new mongoose.Schema(
     printerIP: { type: String },
     taxMode: {
       type: String,
-      enum: ["inclusive", "exclusive"],
+      enum: ["standard", "inclusive", "exclusive", "reduced8", "non_tax"],
       default: "inclusive",
     },
   },
