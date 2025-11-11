@@ -378,6 +378,26 @@ const routes = [
       requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
     },
   },
+  {
+    path: "/admin/shops/:shopId/marketing/coupons",
+    name: "marketing-coupons",
+    component: () => import("@/views/marketing/Coupons.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager"],
+    },
+  },
+  {
+    path: "/admin/shops/:shopId/reviews",
+    name: "shop-reviews",
+    component: () => import("@/views/reviews/Reviews.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
+    },
+  },
 
   {
     path: "/dashboard/overview",
