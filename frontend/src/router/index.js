@@ -348,6 +348,36 @@ const routes = [
       requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
     },
   },
+  {
+    path: "/admin/shops/:shopId/kds/kitchen",
+    name: "kds-kitchen",
+    component: () => import("@/views/kds/Kitchen.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
+    },
+  },
+  {
+    path: "/admin/shops/:shopId/kds/drink",
+    name: "kds-drink",
+    component: () => import("@/views/kds/Drink.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
+    },
+  },
+  {
+    path: "/admin/shops/:shopId/kds/hall",
+    name: "kds-hall",
+    component: () => import("@/views/kds/Hall.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
+    },
+  },
 
   {
     path: "/dashboard/overview",

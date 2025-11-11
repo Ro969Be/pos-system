@@ -3,7 +3,7 @@ import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import Payment from "../models/Payment.js";
 import Refund from "../models/Refund.js";
-import Ticket from "../models/Ticket.js";
+import KdsTicket from "../models/KdsTicket.js";
 
 const TAX_RATES = {
   inclusive: 0.1,
@@ -76,32 +76,38 @@ function calculateTotals(items) {
 
 async function emitTickets(order, items, req) {
   const storeId = order.storeId || order.shopId;
-  const tickets = [];
+  const docs = [];
   items.forEach((item, idx) => {
     if (!item.kdsStation) return;
+    const prepSeconds = item.prepSeconds || 600;
     for (let i = 0; i < item.qty; i++) {
-      tickets.push({
+      const createdAt = new Date();
+      docs.push({
+        shopId: order.shopId,
         storeId,
         orderId: order._id,
         orderItemIndex: idx,
         tableId: order.tableId,
-        menuItemId: item.productId,
-        name: item.name,
-        category: item.kdsStation,
+        productId: item.productId,
+        productName: item.name,
+        station: item.kdsStation,
         qty: 1,
-        prepMinutes: Math.round((item.prepSeconds || 600) / 60),
+        priority: prepSeconds,
+        stdPrepSeconds: prepSeconds,
+        alertAtYellow: new Date(createdAt.getTime() + prepSeconds * 1000),
+        alertAtRed: new Date(createdAt.getTime() + prepSeconds * 1500),
       });
     }
   });
-  if (tickets.length) {
-    await Ticket.insertMany(tickets);
+  if (docs.length) {
+    await KdsTicket.insertMany(docs);
     try {
-      req.app.locals.io?.to(`store:${storeId}`).emit("ticket:created", {
+      req.app.locals.io?.to(`store:${storeId}`).emit("kds:created", {
         orderId: order._id,
-        count: tickets.length,
+        ticketCount: docs.length,
       });
     } catch {
-      /* ignore */
+      /* socket errors ignored */
     }
   }
 }
