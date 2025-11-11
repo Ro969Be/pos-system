@@ -298,6 +298,36 @@ const routes = [
       requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
     },
   },
+  {
+    path: "/admin/shops/:shopId/menu/categories",
+    name: "menu-categories",
+    component: () => import("@/views/menu/Categories.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager"],
+    },
+  },
+  {
+    path: "/admin/shops/:shopId/menu/products",
+    name: "menu-products",
+    component: () => import("@/views/menu/Products.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager"],
+    },
+  },
+  {
+    path: "/admin/shops/:shopId/menu/inventory",
+    name: "menu-inventory",
+    component: () => import("@/views/menu/Inventory.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
+    },
+  },
 
   {
     path: "/dashboard/overview",
