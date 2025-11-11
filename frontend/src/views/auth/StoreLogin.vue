@@ -19,7 +19,13 @@
       </div>
       <p v-if="err" class="err">{{ err }}</p>
     </form>
+
     <p class="sub">※ ログイン後に所属店舗の一覧が表示されます。</p>
+    <!-- ▼ 追加：新規店舗作成リンク -->
+    <p class="cta">
+      はじめての方は
+      <router-link to="/store-auth/register-owner">新規店舗作成はこちら</router-link>
+    </p>
   </section>
 </template>
 
@@ -32,8 +38,7 @@ import { joinStore } from "@/lib/socket";
 const router = useRouter();
 const route = useRoute();
 
-// ▼ ここを修正：loginId を使う（emailは不要）
-const loginId = ref("");        // 例: "demo" と入れておくとテスト楽です
+const loginId = ref("");
 const password = ref("");
 const loading = ref(false);
 const err = ref("");
@@ -42,12 +47,9 @@ async function onSubmit() {
   err.value = "";
   loading.value = true;
   try {
-    // ▼ ここを修正：businessLogin(loginId, password)
     const stores = await businessLogin(loginId.value, password.value);
+    if (!stores || stores.length === 0) throw new Error("店舗が見つかりません");
 
-    if (!stores || stores.length === 0) {
-      throw new Error("店舗が見つかりません");
-    }
     if (stores.length === 1) {
       const s = stores[0];
       await selectStore(s.id);
@@ -76,4 +78,6 @@ input{ background:#0b1220; color:#d5dbea; border:1px solid #28324a; border-radiu
 .btn.ghost{ background:#182033; color:#d5dbea; border:1px solid #28324a; }
 .sub{ margin-top:10px; color:#9fb0c9; }
 .err{ margin-top:10px; color:#fca5a5; }
+.cta{ margin-top:12px; color:#cfd6e3; }
+.cta a{ color:#93c5fd; text-decoration: underline; }
 </style>

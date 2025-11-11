@@ -14,3 +14,19 @@ export async function selectStore(storeId) {
   await fetchMe();
   return data.store;
 }
+
+export async function registerOwnerAny(payload) {
+  // payload: { orgName, name?, email?, phone? }
+  const { data } = await api.post("/business/register-owner", payload);
+  return data; // { id, businessLoginId, setPasswordUrl, expiresAt }
+}
+
+export async function requestBizPasswordLink() {
+  const { data } = await api.post("/business/password/request");
+  return data; // { ok, url, expiresAt }
+}
+
+export async function setBusinessPassword({ token, password }) {
+  const { data } = await api.post("/business/password/set", { token, password });
+  return data; // { ok: true }
+}

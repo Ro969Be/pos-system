@@ -2,6 +2,17 @@ import mongoose from "mongoose";
 import Staff from "../models/Staff.js";
 import User from "../models/User.js";
 
+const ROLE_RANK = {
+  part_time: 0,
+  employee: 1,
+  assistant_manager: 2,
+  store_manager: 3,
+  area_manager: 4,
+  owner: 5,
+  admin: 6,
+};
+function rankOf(role){ return ROLE_RANK[role] ?? -1; }
+
 // 正規化（V2でも使用）
 function normalizeEmail(s){ return (s || "").trim().toLowerCase(); }
 function normalizePhone(s){
@@ -15,14 +26,44 @@ function normalizePhone(s){
 export async function listStaff(req, res, next) {
   try {
     const storeId = req.user.storeId;
-    const rows = await Staff.find({ storeId, role: { $ne: "admin" } }) // ← 追加
-      .select("-passwordHash")
-      .sort({ createdAt: -1 })
-      .lean();
-    res.json(rows.map(x => ({ ...x, id: String(x._id) })));
-  } catch (e) {
-    next(e);
-  }
+    const myRole  = req.user.role || "employee";
+
+    const rows = await Staff.aggregate([
+      { $match: { storeId: new mongoose.Types.ObjectId(storeId) } },
+      // 管理者は一覧から非表示
+      { $match: { role: { $ne: "admin" } } },
+      { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "user" } },
+      { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          id: { $toString: "$_id" },
+          userId: { $toString: "$userId" },
+          displayName: 1,
+          accountName: 1,
+          role: 1,
+          userName: "$user.name",
+          email: "$user.email",
+          phone: "$user.phone",
+        },
+      },
+    ]);
+    const myRank = rankOf(myRole);
+    const shaped = rows.map(r => {
+      const targetRank = rankOf(r.role);
+      const canEdit = targetRank < myRank;   // 下位のみ編集可
+      const canDelete = targetRank < myRank; // 下位のみ削除可
+      return { ...r, canEdit, canDelete };
+     });
+
+    shaped.sort((a, b) => {
+      const ar = rankOf(a.role);
+      const br = rankOf(b.role);
+      if (ar !== br) return br - ar;
+      return (a.displayName || "").localeCompare(b.displayName || "");
+    });
+
+    res.json(shaped);
+  } catch (e) { next(e); }
 }
 
 // 一般ユーザー検索（メール/TEL/ユーザーID/正規化キー）
@@ -53,8 +94,14 @@ export async function searchUsers(req, res, next) {
 export async function createStaff(req, res, next) {
   try {
     const storeId = req.user.storeId;
+    const myRole  = req.user.role;
+
     const { userId, displayName, accountName, role } = req.body;
     if (!userId) return res.status(400).json({ message: "userId is required" });
+
+    if (role && rankOf(role) >= rankOf(myRole)) {
+      return res.status(403).json({ message: "自分と同等以上の権限は付与できません" });
+    }
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -87,6 +134,8 @@ export async function createStaff(req, res, next) {
 export async function updateStaff(req, res, next) {
   try {
     const storeId = req.user.storeId;
+    const myRole  = req.user.role;
+
     const s = await Staff.findOne({ _id: req.params.id, storeId });
     if (!s) return res.status(404).json({ message: "Not found" });
 
@@ -95,10 +144,19 @@ export async function updateStaff(req, res, next) {
       return res.status(403).json({ message: "管理者のロールは変更できません" });
     }
 
+    if (rankOf(myRole) <= rankOf(s.role)) {
+      return res.status(403).json({ message: "自分と同等以上の権限は編集できません" });
+    }
+
     // 通常の更新処理
     const { name, email, phone, role, password } = req.body;
-    if (name) s.displayName = name;        // ← displayName を変更
-    if (email) s.accountName = email;      // ← accountName も必要なら変更
+
+    if (role && rankOf(role) >= rankOf(myRole)) {
+      return res.status(403).json({ message: "自分と同等以上の権限に変更できません" });
+    }
+
+    if (name) s.displayName = name;
+    if (email) s.accountName = email;
     if (phone) s.phone = phone;
     if (role) s.role = role;
     if (password) await s.setPassword(password);
@@ -114,12 +172,18 @@ export async function updateStaff(req, res, next) {
 export async function deleteStaff(req, res, next) {
   try {
     const storeId = req.user.storeId;
+    const myRole  = req.user.role;
+
     const s = await Staff.findOne({ _id: req.params.id, storeId });
     if (!s) return res.status(404).json({ message: "Not found" });
 
     // 🔒 admin の削除は禁止
     if (s.role === "admin") {
       return res.status(403).json({ message: "管理者は削除できません" });
+    }
+
+    if (rankOf(myRole) <= rankOf(s.role)) {
+      return res.status(403).json({ message: "自分と同等以上の権限は削除できません" });
     }
 
     await Staff.deleteOne({ _id: s._id });

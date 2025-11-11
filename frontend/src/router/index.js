@@ -126,15 +126,25 @@ const routes = [
     component: () => import("@/views/auth/StoreLogin.vue"),
   },
   {
-    path: "/store-auth/register",
-    name: "store-register",
-    component: () => import("@/views/auth/StoreRegister.vue"),
+    path: "/store-auth/register-owner",
+    name: "register-owner",
+    component: () => import("@/views/auth/RegisterOwner.vue"),
   },
   {
-    path: "/store-auth/register/done",
-    name: "store-register-done",
-    component: () => import("@/views/auth/RegisterDone.vue"),
+    path: "/store-auth/set-password",
+    name: "store-set-password",
+    component: () => import("@/views/auth/SetBusinessPassword.vue"),
   },
+  // {
+  //   path: "/store-auth/register",
+  //   name: "store-register",
+  //   component: () => import("@/views/auth/StoreRegister.vue"),
+  // },
+  // {
+  //   path: "/store-auth/register/done",
+  //   name: "store-register-done",
+  //   component: () => import("@/views/auth/RegisterDone.vue"),
+  // },
 
   // ★ 店舗一覧→選択
   {
