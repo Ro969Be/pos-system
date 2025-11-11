@@ -269,6 +269,37 @@ const routes = [
   },
 
   {
+    path: "/admin/shops/:shopId/reservations",
+    name: "reservation-list",
+    component: () => import("@/views/reservation/ReservationList.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
+    },
+  },
+  {
+    path: "/admin/shops/:shopId/reservations/new",
+    name: "reservation-form",
+    component: () => import("@/views/reservation/ReservationForm.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager"],
+    },
+  },
+  {
+    path: "/admin/shops/:shopId/reservations/calendar",
+    name: "reservation-calendar",
+    component: () => import("@/views/reservation/ReservationCalendar.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
+    },
+  },
+
+  {
     path: "/dashboard/overview",
     name: "dashboard-overview",
     component: () => import("@/views/store/Dashboard.vue"),

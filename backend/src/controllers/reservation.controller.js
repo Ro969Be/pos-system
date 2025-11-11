@@ -1,231 +1,309 @@
+import mongoose from "mongoose";
 import Reservation from "../models/Reservation.js";
+import ReservationSlot from "../models/ReservationSlot.js";
 import Table from "../models/Table.js";
 
-/** 時間帯重複: (a.start < b.end) && (a.end > b.start) */
-function overlap(aStart, aEnd, bStart, bEnd) {
-  return aStart < bEnd && aEnd > bStart;
+const STATUS_FLOW = {
+  hold: ["confirmed", "cancelled"],
+  confirmed: ["arrived", "noShow", "cancelled"],
+  arrived: [],
+  noShow: [],
+  cancelled: [],
+};
+
+function resolveShopId(req) {
+  return req.params.shopId || req.body.shopId || req.query.shopId || req.user?.storeId;
 }
 
-/** 指定時間帯の占有テーブルMap（自分自身 excludeId を除外可能） */
-async function occupiedMap(storeId, from, to, excludeId = null) {
-  const list = await Reservation.find({
-    storeId,
-    status: { $in: ["booked", "seated"] },
-    $or: [{ start: { $lt: to } }, { end: { $gt: from } }],
-  }).lean();
+function toDate(value) {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
+async function occupiedTables(shopId, start, end, excludeId = null) {
+  const criteria = {
+    shopId,
+    status: { $in: ["hold", "confirmed", "arrived"] },
+    startTime: { $lt: end },
+    endTime: { $gt: start },
+  };
+  if (excludeId) criteria._id = { $ne: excludeId };
+  const list = await Reservation.find(criteria).select("tableId").lean();
   const map = new Map();
-  for (const r of list) {
-    if (excludeId && String(r._id) === String(excludeId)) continue; // ← 自分を除外
-    if (!r.tableId) continue;
-    if (overlap(from, to, r.start, r.end)) map.set(String(r.tableId), true);
-  }
+  list.forEach((r) => {
+    if (r.tableId) map.set(String(r.tableId), true);
+  });
   return map;
 }
 
-/** 最小十分席（capacity>=people の最小）から、空きを選ぶ。excludeId で自分を除外可能 */
-async function pickTable(storeId, people, from, to, excludeId = null) {
-  const tables = await Table.find({ storeId }).sort({ capacity: 1 }).lean();
+async function autoAssignTable(shopId, people, start, end, excludeId = null) {
+  const tables = await Table.find({ shopId })
+    .sort({ capacity: 1 })
+    .lean();
   if (!tables.length) return null;
-
-  const occ = await occupiedMap(storeId, from, to, excludeId);
-  return (
-    tables.filter((t) => t.capacity >= people && !occ.get(String(t._id)))[0] ||
-    null
-  );
+  const occ = await occupiedTables(shopId, start, end, excludeId);
+  return tables.find((t) => t.capacity >= people && !occ.get(String(t._id))) || null;
 }
 
-/** 予約作成（自動割当） */
-export async function createReservation(req, res, next) {
-  try {
-    const storeId = req.user.storeId;
-    const {
-      name,
-      phone = "",
-      email = "",
-      people,
-      date,
-      durationMin = 120,
-      notes = "",
-    } = req.body;
-
-    if (!name || !people || !date)
-      return res
-        .status(400)
-        .json({ message: "name, people, date are required" });
-
-    const start = new Date(date);
-    if (isNaN(start.getTime()))
-      return res.status(400).json({ message: "invalid date" });
-    const end = new Date(start.getTime() + Number(durationMin) * 60000);
-
-    const table = await pickTable(storeId, Number(people), start, end);
-    if (!table)
-      return res
-        .status(409)
-        .json({ message: "No available table for the timeframe" });
-
-    const doc = await Reservation.create({
-      storeId,
-      name,
-      phone,
-      email,
-      people,
-      start,
-      end,
-      tableId: table._id,
-      notes,
-      status: "booked",
-    });
-
-    res.status(201).json(doc);
-    try {
-      req.app.locals.io?.emit("reservation:created", doc);
-    } catch {}
-  } catch (e) {
-    next(e);
-  }
+function normalizePartySize(body = {}) {
+  const total = Number(body.total || body.people || 1);
+  const adult = Number(body.adult ?? total);
+  const child = Number(body.child ?? 0);
+  return {
+    total,
+    adult: adult,
+    child,
+  };
 }
 
-/** 可用性チェック: /api/reservations/availability?date=...&people=2&durationMin=120[&excludeId=...] */
-export async function checkAvailability(req, res, next) {
-  try {
-    const storeId = req.user.storeId;
-    const { date, people, durationMin = 120, excludeId = null } = req.query;
-    if (!date || !people)
-      return res.status(400).json({ message: "date and people are required" });
-
-    const start = new Date(date);
-    if (isNaN(start.getTime()))
-      return res.status(400).json({ message: "invalid date" });
-    const end = new Date(start.getTime() + Number(durationMin) * 60000);
-
-    const table = await pickTable(
-      storeId,
-      Number(people),
-      start,
-      end,
-      excludeId || null
-    );
-    return res.json({ available: !!table, table });
-  } catch (e) {
-    next(e);
-  }
+function validateTransition(current, next) {
+  if (current === next) return true;
+  const allowed = STATUS_FLOW[current] || [];
+  return allowed.includes(next);
 }
 
-/** 範囲取得: /api/reservations?from=YYYY-MM-DD&to=YYYY-MM-DD */
 export async function listReservations(req, res, next) {
   try {
-    const storeId = req.user.storeId;
-    const from = req.query.from
-      ? new Date(req.query.from)
-      : new Date(new Date().toISOString().slice(0, 10));
-    const to = req.query.to
-      ? new Date(req.query.to)
-      : new Date(from.getTime() + 24 * 60 * 60000);
-
+    const shopId = resolveShopId(req);
+    if (!shopId || !mongoose.isValidObjectId(shopId)) {
+      return res.status(400).json({ message: "Invalid shopId" });
+    }
+    const from = req.query.from ? toDate(req.query.from) : new Date();
+    const to =
+      (req.query.to && toDate(req.query.to)) ||
+      new Date(from.getTime() + 24 * 60 * 60 * 1000);
     const docs = await Reservation.find({
-      storeId,
-      $or: [{ start: { $lt: to } }, { end: { $gt: from } }],
+      shopId,
+      startTime: { $lt: to },
+      endTime: { $gt: from },
     })
-      .sort({ start: 1 })
+      .sort({ startTime: 1 })
       .lean();
-
-    res.json({ value: docs, Count: docs.length });
-  } catch (e) {
-    next(e);
+    res.json(docs);
+  } catch (err) {
+    next(err);
   }
 }
 
-/** 予約更新
- *  - people/start/duration が変わらない → 席は維持（name/notes などだけ更新）
- *  - 変わる場合 → excludeId を使って自分を除外しつつ再割当
- */
-export async function updateReservation(req, res, next) {
+export async function createReservation(req, res, next) {
   try {
-    const storeId = req.user.storeId;
-    const { id } = req.params;
-    const patch = req.body;
-
-    const cur = await Reservation.findOne({ _id: id, storeId }).lean();
-    if (!cur) return res.status(404).json({ message: "Reservation not found" });
-
-    // 変更後の値を計算
-    const nextPeople = Number(patch.people ?? cur.people);
-    const startRaw = patch.start ?? patch.date ?? cur.start;
-    const nextStart = new Date(startRaw);
-    if (isNaN(nextStart.getTime()))
-      return res.status(400).json({ message: "invalid date" });
-    const nextDur = Number(patch.durationMin ?? (cur.end - cur.start) / 60000);
-    const nextEnd = new Date(nextStart.getTime() + nextDur * 60000);
-
-    const peopleChanged = nextPeople !== cur.people;
-    const timeChanged =
-      nextStart.getTime() !== new Date(cur.start).getTime() ||
-      nextEnd.getTime() !== new Date(cur.end).getTime();
-
-    let nextTableId = cur.tableId;
-
-    if (peopleChanged || timeChanged) {
-      const table = await pickTable(
-        storeId,
-        nextPeople,
-        nextStart,
-        nextEnd,
-        id
-      ); // 自分を除外
-      if (!table)
-        return res
-          .status(409)
-          .json({ message: "No available table for the timeframe" });
-      nextTableId = table._id;
-    } else {
-      // 席は維持
-      nextTableId = cur.tableId;
+    const shopId = resolveShopId(req);
+    if (!shopId || !mongoose.isValidObjectId(shopId)) {
+      return res.status(400).json({ message: "Invalid shopId" });
     }
 
-    const doc = await Reservation.findOneAndUpdate(
-      { _id: id, storeId },
-      {
-        $set: {
-          people: nextPeople,
-          start: nextStart,
-          end: nextEnd,
-          tableId: nextTableId,
-          name: patch.name ?? cur.name,
-          phone: patch.phone ?? cur.phone,
-          email: patch.email ?? cur.email,
-          notes: patch.notes ?? cur.notes,
-        },
-      },
-      { new: true }
-    ).lean();
+    const {
+      customerName,
+      contactPhone,
+      contactEmail,
+      startTime,
+      durationMinutes = 90,
+      partySize = {},
+      channel = "Front",
+      status = "hold",
+      holdMinutes = 15,
+      memo,
+      tags = [],
+    } = req.body;
 
-    res.json(doc);
-    try {
-      req.app.locals.io?.emit("reservation:updated", doc);
-    } catch {}
-  } catch (e) {
-    next(e);
+    if (!customerName || !startTime) {
+      return res
+        .status(400)
+        .json({ message: "customerName and startTime are required" });
+    }
+    const start = toDate(startTime);
+    if (!start) return res.status(400).json({ message: "Invalid startTime" });
+    const dur = Number(durationMinutes);
+    const end = new Date(start.getTime() + dur * 60000);
+
+    const party = normalizePartySize(partySize);
+    if (!party.total || party.total < 1) {
+      return res.status(400).json({ message: "partySize.total must be >=1" });
+    }
+
+    const table = await autoAssignTable(shopId, party.total, start, end);
+    if (!table) {
+      return res.status(409).json({ message: "No available table for timeframe" });
+    }
+
+    const holdExpiresAt =
+      status === "hold"
+        ? new Date(Date.now() + Math.max(1, Math.min(Number(holdMinutes) || 15, 120)) * 60000)
+        : null;
+
+    const doc = await Reservation.create({
+      shopId,
+      storeId: shopId,
+      customerName,
+      contactPhone,
+      contactEmail,
+      startTime: start,
+      endTime: end,
+      partySize: party,
+      tableId: table._id,
+      channel,
+      status,
+      holdExpiresAt,
+      memo,
+      tags,
+      createdBy: req.user?.userId,
+    });
+    res.status(201).json(doc);
+  } catch (err) {
+    next(err);
   }
 }
 
-/** 予約キャンセル */
-export async function cancelReservation(req, res, next) {
+export async function updateReservation(req, res, next) {
   try {
-    const storeId = req.user.storeId;
-    const { id } = req.params;
-    const doc = await Reservation.findOneAndUpdate(
-      { _id: id, storeId },
-      { $set: { status: "cancelled" } },
+    const shopId = resolveShopId(req);
+    if (!shopId || !mongoose.isValidObjectId(shopId)) {
+      return res.status(400).json({ message: "Invalid shopId" });
+    }
+    const id = req.params.reservationId || req.params.id;
+    const current = await Reservation.findOne({ _id: id, shopId });
+    if (!current) return res.status(404).json({ message: "Reservation not found" });
+
+    const nextParty = req.body.partySize
+      ? normalizePartySize(req.body.partySize)
+      : current.partySize;
+    const startRaw = req.body.startTime || current.startTime;
+    const start = toDate(startRaw);
+    if (!start) return res.status(400).json({ message: "Invalid startTime" });
+    const durationMinutes =
+      Number(req.body.durationMinutes) ||
+      (current.endTime.getTime() - current.startTime.getTime()) / 60000;
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+
+    let tableId = current.tableId;
+    const scheduleChanged =
+      start.getTime() !== current.startTime.getTime() ||
+      end.getTime() !== current.endTime.getTime() ||
+      nextParty.total !== current.partySize.total;
+
+    if (scheduleChanged) {
+      const table = await autoAssignTable(
+        shopId,
+        nextParty.total,
+        start,
+        end,
+        current._id
+      );
+      if (!table) {
+        return res.status(409).json({ message: "No available table for timeframe" });
+      }
+      tableId = table._id;
+    }
+
+    let nextStatus = req.body.status || current.status;
+    if (!validateTransition(current.status, nextStatus)) {
+      return res.status(409).json({ message: "Invalid status transition" });
+    }
+
+    const holdExpiresAt =
+      nextStatus === "hold"
+        ? current.holdExpiresAt || new Date(Date.now() + 15 * 60000)
+        : null;
+
+    current.customerName = req.body.customerName ?? current.customerName;
+    current.contactPhone = req.body.contactPhone ?? current.contactPhone;
+    current.contactEmail = req.body.contactEmail ?? current.contactEmail;
+    current.partySize = nextParty;
+    current.startTime = start;
+    current.endTime = end;
+    current.tableId = tableId;
+    current.memo = req.body.memo ?? current.memo;
+    current.tags = req.body.tags ?? current.tags;
+    current.channel = req.body.channel ?? current.channel;
+    current.status = nextStatus;
+    current.holdExpiresAt = holdExpiresAt;
+
+    await current.save();
+    res.json(current.toObject());
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listSlots(req, res, next) {
+  try {
+    const shopId = resolveShopId(req);
+    if (!shopId || !mongoose.isValidObjectId(shopId)) {
+      return res.status(400).json({ message: "Invalid shopId" });
+    }
+    const from = req.query.from ? toDate(req.query.from) : new Date();
+    const to =
+      (req.query.to && toDate(req.query.to)) ||
+      new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const docs = await ReservationSlot.find({
+      shopId,
+      date: { $gte: from, $lte: to },
+    })
+      .sort({ date: 1, time: 1 })
+      .lean();
+    res.json(docs);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function upsertSlot(req, res, next) {
+  try {
+    const shopId = resolveShopId(req);
+    if (!shopId || !mongoose.isValidObjectId(shopId)) {
+      return res.status(400).json({ message: "Invalid shopId" });
+    }
+    const { date, time } = req.body;
+    if (!date || !time) {
+      return res.status(400).json({ message: "date and time are required" });
+    }
+    const day = toDate(date);
+    if (!day) return res.status(400).json({ message: "Invalid date" });
+    const payload = {
+      capacityRemains: req.body.capacityRemains,
+      assignableTableIds: req.body.assignableTableIds,
+      staffId: req.body.staffId,
+      openFlag: req.body.openFlag,
+      seatTimeMinutes: req.body.seatTimeMinutes,
+      overbookBuffer: req.body.overbookBuffer,
+      notes: req.body.notes,
+    };
+
+    const doc = await ReservationSlot.findOneAndUpdate(
+      { shopId, date: day, time },
+      {
+        $set: {
+          ...payload,
+          shopId,
+          storeId: shopId,
+          date: day,
+          time,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).lean();
+    res.status(201).json(doc);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function patchSlot(req, res, next) {
+  try {
+    const shopId = resolveShopId(req);
+    if (!shopId || !mongoose.isValidObjectId(shopId)) {
+      return res.status(400).json({ message: "Invalid shopId" });
+    }
+    const { slotId } = req.params;
+    const doc = await ReservationSlot.findOneAndUpdate(
+      { _id: slotId, shopId },
+      { $set: req.body },
       { new: true }
     ).lean();
-    if (!doc) return res.status(404).json({ message: "Reservation not found" });
-    res.json({ ok: true });
-    try {
-      req.app.locals.io?.emit("reservation:cancelled", { _id: id, storeId });
-    } catch {}
-  } catch (e) {
-    next(e);
+    if (!doc) return res.status(404).json({ message: "Slot not found" });
+    res.json(doc);
+  } catch (err) {
+    next(err);
   }
 }
