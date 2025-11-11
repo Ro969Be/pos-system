@@ -1,6 +1,6 @@
 // frontend/src/router/index.js
 import { createRouter, createWebHistory } from "vue-router";
-import { isLoggedIn, fetchMe } from "@/lib/auth";
+import { isLoggedIn, fetchMe, currentUser } from "@/lib/auth";
 
 const routes = [
   { path: "/", redirect: "/public/shops" },
@@ -251,6 +251,13 @@ const routes = [
     meta: { requiresAuth: true },
   },
 
+  {
+    path: "/dashboard/overview",
+    name: "dashboard-overview",
+    component: () => import("@/views/store/Dashboard.vue"),
+    meta: { requiresAuth: true, requiresRole: ["Admin", "Owner", "StoreManager"] },
+  },
+
   { path: "/:pathMatch(.*)*", redirect: "/public/shops" },
 ];
 
@@ -270,7 +277,44 @@ router.beforeEach(async (to) => {
   if (to.meta?.requiresAuth && !isLoggedIn.value) {
     return { path: "/store-auth/login", query: { next: to.fullPath } };
   }
+  const requiredRoles = resolveRouteRoles(to);
+  if (
+    requiredRoles.length &&
+    !hasRoleAccess(currentUser.value, requiredRoles, to.meta?.shopId || null)
+  ) {
+    return {
+      path: "/store-auth/login",
+      query: { next: to.fullPath, reason: "role" },
+    };
+  }
   return true;
 });
 
 export default router;
+
+export function resolveRouteRoles(route) {
+  if (route.meta?.requiresRole) {
+    return Array.isArray(route.meta.requiresRole)
+      ? route.meta.requiresRole
+      : [route.meta.requiresRole];
+  }
+  if (route.path.startsWith("/dashboard")) {
+    return ["Admin", "Owner", "StoreManager", "AssistantManager"];
+  }
+  return [];
+}
+
+export function hasRoleAccess(user, roles, shopId) {
+  if (!roles?.length) return true;
+  if (!user) return false;
+  const globalRoles = user.roles || [];
+  const bindings = user.bindings || [];
+  const globalMatch = globalRoles.some((role) => roles.includes(role));
+  if (globalMatch) return true;
+  if (!shopId && !bindings.length) return false;
+  return bindings.some(
+    (binding) =>
+      (!shopId || String(binding.shopId) === String(shopId)) &&
+      roles.includes(binding.role)
+  );
+}

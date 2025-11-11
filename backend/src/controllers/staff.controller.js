@@ -1,17 +1,9 @@
 import mongoose from "mongoose";
 import Staff from "../models/Staff.js";
 import User from "../models/User.js";
+import { canonicalRole, roleRank } from "../utils/roles.js";
 
-const ROLE_RANK = {
-  part_time: 0,
-  employee: 1,
-  assistant_manager: 2,
-  store_manager: 3,
-  area_manager: 4,
-  owner: 5,
-  admin: 6,
-};
-function rankOf(role){ return ROLE_RANK[role] ?? -1; }
+function rankOf(role){ return roleRank(role); }
 
 // 正規化（V2でも使用）
 function normalizeEmail(s){ return (s || "").trim().toLowerCase(); }
@@ -31,7 +23,7 @@ export async function listStaff(req, res, next) {
     const rows = await Staff.aggregate([
       { $match: { storeId: new mongoose.Types.ObjectId(storeId) } },
       // 管理者は一覧から非表示
-      { $match: { role: { $ne: "admin" } } },
+      { $match: { role: { $nin: ["admin", "Admin"] } } },
       { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "user" } },
       { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
       {
@@ -109,7 +101,7 @@ export async function createStaff(req, res, next) {
     // User.storeIds に追加（重複なし）
     await User.updateOne(
       { _id: user._id },
-      { $addToSet: { storeIds: storeId } }
+      { $addToSet: { storeIds: storeId, shopIds: storeId } }
     );
 
     // Staff upsert（同一 store x user で一意）
@@ -120,7 +112,7 @@ export async function createStaff(req, res, next) {
         $set: {
           displayName: displayName ?? user.name ?? "",
           accountName: accountName ?? user.email ?? user.phone ?? "",
-          role: role ?? "staff",
+          role: role ?? "Employee",
         },
       },
       { new: true, upsert: true }
@@ -140,7 +132,7 @@ export async function updateStaff(req, res, next) {
     if (!s) return res.status(404).json({ message: "Not found" });
 
     // 🔒 admin の編集は禁止
-    if (s.role === "admin") {
+    if (canonicalRole(s.role) === "Admin") {
       return res.status(403).json({ message: "管理者のロールは変更できません" });
     }
 
@@ -149,7 +141,7 @@ export async function updateStaff(req, res, next) {
     }
 
     // 通常の更新処理
-    const { name, email, phone, role, password } = req.body;
+    const { name, email, phone, role } = req.body;
 
     if (role && rankOf(role) >= rankOf(myRole)) {
       return res.status(403).json({ message: "自分と同等以上の権限に変更できません" });
@@ -159,8 +151,6 @@ export async function updateStaff(req, res, next) {
     if (email) s.accountName = email;
     if (phone) s.phone = phone;
     if (role) s.role = role;
-    if (password) await s.setPassword(password);
-
     await s.save();
     res.json({ ok: true });
   } catch (e) {
@@ -178,7 +168,7 @@ export async function deleteStaff(req, res, next) {
     if (!s) return res.status(404).json({ message: "Not found" });
 
     // 🔒 admin の削除は禁止
-    if (s.role === "admin") {
+    if (canonicalRole(s.role) === "Admin") {
       return res.status(403).json({ message: "管理者は削除できません" });
     }
 
