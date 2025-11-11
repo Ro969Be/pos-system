@@ -1,6 +1,7 @@
 import { Router } from "express";
 import auth from "./auth.routes.js";
 import stores from "./stores.routes.js";
+import shops from "./shops.routes.js";
 import menu from "./menu.routes.js";
 import inventory from "./inventory.routes.js";
 import reservation from "./reservation.routes.js";
@@ -14,6 +15,7 @@ import storeconfig from "./storeconfig.routes.js";
 const r = Router();
 r.use("/auth", auth);
 r.use("/stores", stores);
+r.use("/shops", shops);
 r.use("/menu", menu);
 r.use("/inventory", inventory);
 r.use("/reservations", reservation);

@@ -252,6 +252,23 @@ const routes = [
   },
 
   {
+    path: "/admin/shops",
+    name: "shops-admin",
+    component: () => import("@/views/shops/ShopsAdmin.vue"),
+    meta: { requiresAuth: true, requiresRole: ["Admin", "Owner"] },
+  },
+  {
+    path: "/admin/shops/:shopId/tables",
+    name: "tables-admin",
+    component: () => import("@/views/tables/TablesAdmin.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager"],
+    },
+  },
+
+  {
     path: "/dashboard/overview",
     name: "dashboard-overview",
     component: () => import("@/views/store/Dashboard.vue"),
@@ -278,9 +295,10 @@ router.beforeEach(async (to) => {
     return { path: "/store-auth/login", query: { next: to.fullPath } };
   }
   const requiredRoles = resolveRouteRoles(to);
+  const scopeShopId = to.meta?.shopId || to.params?.shopId || null;
   if (
     requiredRoles.length &&
-    !hasRoleAccess(currentUser.value, requiredRoles, to.meta?.shopId || null)
+    !hasRoleAccess(currentUser.value, requiredRoles, scopeShopId)
   ) {
     return {
       path: "/store-auth/login",
