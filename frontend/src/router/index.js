@@ -328,6 +328,26 @@ const routes = [
       requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
     },
   },
+  {
+    path: "/admin/shops/:shopId/orders/register",
+    name: "order-register",
+    component: () => import("@/views/order/Register.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager"],
+    },
+  },
+  {
+    path: "/admin/orders/:orderId",
+    name: "order-detail",
+    component: () => import("@/views/order/OrderDetail.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
+    },
+  },
 
   {
     path: "/dashboard/overview",
