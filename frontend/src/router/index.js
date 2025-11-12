@@ -439,6 +439,20 @@ const routes = [
     props: true,
     meta: { requiresAuth: true, requiresRole: ["Admin", "Owner", "StoreManager"] },
   },
+  {
+    path: "/admin/shops/:shopId/jobs",
+    name: "jobs-admin",
+    component: () => import("@/views/jobs/Jobs.vue"),
+    props: true,
+    meta: { requiresAuth: true, requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"] },
+  },
+  {
+    path: "/admin/shops/:shopId/line/broadcasts",
+    name: "line-broadcasts",
+    component: () => import("@/views/line/Broadcast.vue"),
+    props: true,
+    meta: { requiresAuth: true, requiresRole: ["Admin", "Owner", "StoreManager"] },
+  },
 
   {
     path: "/dashboard/overview",
