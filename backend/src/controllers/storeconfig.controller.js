@@ -1,7 +1,7 @@
 // backend/src/controllers/storeconfig.controller.js
 import Store from "../models/Store.js";
 import Station from "../models/Station.js";
-import Category from "../models/Category.js";
+import MenuCategory from "../models/MenuCategory.js";
 import Register from "../models/Register.js";
 import MobileOrderSetting from "../models/MobileOrderSetting.js";
 import Table from "../models/Table.js";
@@ -53,13 +53,19 @@ export async function updateStoreDetail(req, res, next) {
 // ---- カテゴリ
 export async function listCategories(req, res, next) {
   try {
-    const rows = await Category.find({
-      storeId: req.user.storeId,
-      isActive: true,
+    const rows = await MenuCategory.find({
+      shopId: req.user.storeId,
     })
-      .sort({ name: 1 })
+      .sort({ orderNo: 1, name: 1 })
       .lean();
-    res.json(rows.map((x) => ({ id: String(x._id), name: x.name })));
+    res.json(
+      rows.map((x) => ({
+        id: String(x._id),
+        name: x.name,
+        type: x.type,
+        orderNo: x.orderNo,
+      }))
+    );
   } catch (e) {
     next(e);
   }
@@ -67,9 +73,13 @@ export async function listCategories(req, res, next) {
 
 export async function createCategory(req, res, next) {
   try {
-    const row = await Category.create({
+    const { name, type = "Food", orderNo = 0 } = req.body;
+    const row = await MenuCategory.create({
+      shopId: req.user.storeId,
       storeId: req.user.storeId,
-      name: req.body.name,
+      name,
+      type,
+      orderNo,
     });
     res.status(201).json({ id: String(row._id) });
   } catch (e) {
@@ -79,7 +89,10 @@ export async function createCategory(req, res, next) {
 
 export async function deleteCategory(req, res, next) {
   try {
-    await Category.deleteOne({ _id: req.params.id, storeId: req.user.storeId });
+    await MenuCategory.deleteOne({
+      _id: req.params.id,
+      shopId: req.user.storeId,
+    });
     res.json({ ok: true });
   } catch (e) {
     next(e);

@@ -34,5 +34,6 @@ LineBroadcastSchema.pre("save", function syncStore(next) {
 });
 
 LineBroadcastSchema.index({ shopId: 1, status: 1, createdAt: -1 });
+LineBroadcastSchema.index({ shopId: 1, scheduledAt: 1 });
 
 export default mongoose.model("LineBroadcast", LineBroadcastSchema);

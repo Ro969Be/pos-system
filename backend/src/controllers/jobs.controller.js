@@ -46,13 +46,12 @@ export async function createJob(req, res, next) {
 export async function updateJob(req, res, next) {
   try {
     const shopId = ensureShop(req.params.shopId);
-    const job = await Job.findOneAndUpdate(
-      { _id: req.params.jobId, shopId },
-      { $set: req.body },
-      { new: true }
-    ).lean();
+    const job = await Job.findOne({ _id: req.params.jobId, shopId });
     if (!job) return res.status(404).json({ message: "Job not found" });
-    res.json(job);
+    Object.assign(job, req.body || {});
+    job.updatedBy = req.user?.userId;
+    await job.save();
+    res.json(job.toObject());
   } catch (err) {
     next(err);
   }

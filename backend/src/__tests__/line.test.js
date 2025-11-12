@@ -28,9 +28,11 @@ describe("LINE Broadcasts", () => {
     await request(app)
       .post("/api/shops/507f1f77bcf86cd799439011/line/broadcasts")
       .set(authHeader())
-      .send({ title: "Campaign", body: "Hi!" })
+      .send({ title: "Campaign", body: "Hi!", scheduledAt: "2025-01-01T10:00:00.000Z" })
       .expect(201);
-    expect(create).toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledAt: "2025-01-01T10:00:00.000Z" })
+    );
 
     const save = jest.fn().mockResolvedValue(true);
     jest.spyOn(LineBroadcast, "findOne").mockResolvedValue({

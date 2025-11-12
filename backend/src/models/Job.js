@@ -21,6 +21,7 @@ const JobSchema = new mongoose.Schema(
     },
     publishedAt: Date,
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );
@@ -34,5 +35,6 @@ JobSchema.pre("save", function syncStore(next) {
 });
 
 JobSchema.index({ shopId: 1, status: 1, createdAt: -1 });
+JobSchema.index({ shopId: 1, employmentType: 1 });
 
 export default mongoose.model("Job", JobSchema);

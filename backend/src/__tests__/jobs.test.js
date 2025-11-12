@@ -53,6 +53,22 @@ describe("Jobs & Applications", () => {
       .set(authHeader())
       .send({ status: "interview" })
       .expect(200);
+
+    const save = jest.fn().mockResolvedValue(true);
+    jest.spyOn(Job, "findOne").mockResolvedValue({
+      _id: "job1",
+      shopId: "507f1f77bcf86cd799439011",
+      save,
+      toObject() {
+        return { _id: "job1", status: "published" };
+      },
+    });
+    await request(app)
+      .patch("/api/shops/507f1f77bcf86cd799439011/jobs/job1")
+      .set(authHeader())
+      .send({ status: "published" })
+      .expect(200);
+    expect(save).toHaveBeenCalled();
   });
 
   it("adds messages to application thread", async () => {

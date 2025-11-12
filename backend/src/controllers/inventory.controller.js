@@ -60,3 +60,20 @@ export async function upsertInventory(req, res, next) {
     next(err);
   }
 }
+
+export async function deleteInventory(req, res, next) {
+  try {
+    const shopId = getShopId(req);
+    if (!shopId || !mongoose.isValidObjectId(shopId)) {
+      return res.status(400).json({ message: "Invalid shopId" });
+    }
+    const productId = req.params.productId;
+    if (!mongoose.isValidObjectId(productId)) {
+      return res.status(400).json({ message: "Invalid productId" });
+    }
+    await Inventory.deleteOne({ shopId, productId });
+    return res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}

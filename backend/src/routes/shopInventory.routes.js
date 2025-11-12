@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import {
   getInventory,
   upsertInventory,
+  deleteInventory,
 } from "../controllers/inventory.controller.js";
 
 const router = Router({ mergeParams: true });
@@ -20,6 +21,12 @@ router.put(
   "/:productId",
   requireRole(["Admin", "Owner", "StoreManager"], { shopIdParam: "shopId" }),
   upsertInventory
+);
+
+router.delete(
+  "/:productId",
+  requireRole(["Owner", "StoreManager"], { shopIdParam: "shopId" }),
+  deleteInventory
 );
 
 export default router;
