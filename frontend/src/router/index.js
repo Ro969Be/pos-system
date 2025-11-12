@@ -398,6 +398,26 @@ const routes = [
       requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
     },
   },
+  {
+    path: "/admin/shops/:shopId/cash/register-console",
+    name: "register-console",
+    component: () => import("@/views/cash/RegisterConsole.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"],
+    },
+  },
+  {
+    path: "/admin/shops/:shopId/cash/settlement",
+    name: "register-settlement",
+    component: () => import("@/views/cash/Settlement.vue"),
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiresRole: ["Admin", "Owner", "StoreManager"],
+    },
+  },
 
   {
     path: "/dashboard/overview",
