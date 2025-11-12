@@ -418,6 +418,27 @@ const routes = [
       requiresRole: ["Admin", "Owner", "StoreManager"],
     },
   },
+  {
+    path: "/admin/shops/:shopId/analytics",
+    name: "analytics-dashboard",
+    component: () => import("@/views/analytics/Dashboard.vue"),
+    props: true,
+    meta: { requiresAuth: true, requiresRole: ["Admin", "Owner", "StoreManager", "AssistantManager"] },
+  },
+  {
+    path: "/admin/shops/:shopId/finance/flr",
+    name: "finance-flr",
+    component: () => import("@/views/finance/Flr.vue"),
+    props: true,
+    meta: { requiresAuth: true, requiresRole: ["Admin", "Owner", "StoreManager"] },
+  },
+  {
+    path: "/admin/shops/:shopId/finance/expense",
+    name: "finance-expense",
+    component: () => import("@/views/finance/Expense.vue"),
+    props: true,
+    meta: { requiresAuth: true, requiresRole: ["Admin", "Owner", "StoreManager"] },
+  },
 
   {
     path: "/dashboard/overview",
