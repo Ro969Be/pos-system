@@ -10,7 +10,8 @@ const api = axios.create({
 
 // --- auth header 注入
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token =
+    localStorage.getItem("authToken") || localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -22,6 +23,7 @@ api.interceptors.response.use(
     const status = err?.response?.status;
     if (status === 401) {
       // トークン破棄→ログインへ
+      localStorage.removeItem("authToken");
       localStorage.removeItem("token");
       if (!location.pathname.startsWith("/store-auth"))
         location.href = "/store-auth/login";
@@ -31,3 +33,13 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+export async function registerUser(payload) {
+  const { data } = await api.post("/auth/register", payload);
+  return data;
+}
+
+export async function loginUser(payload) {
+  const { data } = await api.post("/auth/login", payload);
+  return data;
+}

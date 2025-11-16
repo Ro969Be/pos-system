@@ -27,6 +27,11 @@ function toggleCartDropdown(){
   showCartDropdown.value = !showCartDropdown.value;
 }
 
+const closeCart = () => {
+  showCartDropdown.value = false;
+  open.value = false;
+};
+
 function onDocClick(e){
   const target = e.target;
 

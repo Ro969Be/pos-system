@@ -1,6 +1,6 @@
 // frontend/src/router/index.js
 import { createRouter, createWebHistory } from "vue-router";
-import { isLoggedIn, fetchMe, currentUser } from "@/lib/auth";
+import { isLoggedIn, currentUser, ensureAuthReady } from "@/lib/auth";
 
 const routes = [
   { path: "/", redirect: "/public/shops" },
@@ -106,12 +106,14 @@ const routes = [
   {
     path: "/login",
     name: "user-login",
-    component: () => import("@/views/Login.vue"),
+    component: () => import("@/views/auth/UserLogin.vue"),
+    meta: { guestOnly: true },
   },
   {
     path: "/register",
     name: "user-register",
-    component: () => import("@/views/auth/RegisterBasic.vue"),
+    component: () => import("@/views/auth/UserRegister.vue"),
+    meta: { guestOnly: true },
   },
   {
     path: "/register/done",
@@ -471,11 +473,10 @@ const router = createRouter({
 });
 
 // --- ルートガード
-let meFetched = false;
 router.beforeEach(async (to) => {
-  if (!meFetched && localStorage.getItem("token")) {
-    meFetched = true;
-    await fetchMe();
+  await ensureAuthReady();
+  if (to.meta?.guestOnly && isLoggedIn.value) {
+    return { path: "/public/shops" };
   }
   if (to.meta?.requiresAuth && !isLoggedIn.value) {
     return { path: "/store-auth/login", query: { next: to.fullPath } };

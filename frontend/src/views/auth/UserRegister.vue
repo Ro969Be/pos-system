@@ -1,67 +1,57 @@
 <template>
   <section class="page">
-    <h2>店舗様はこちら｜オーナー新規登録</h2>
+    <h2>お客様用新規登録</h2>
     <p class="sub">
-      店舗オーナー用のアカウントを作成します。入力後すぐにダッシュボードへ遷移します。
+      必要事項を入力してアカウントを作成してください。登録後すぐにご利用いただけます。
     </p>
 
     <form class="panel" @submit.prevent="onSubmit">
       <label class="field">
-        <span>店舗名（必須）</span>
-        <input
-          v-model.trim="form.shopName"
-          placeholder="例）テスト店舗A"
-          autocomplete="organization"
-          required
-        />
-      </label>
-
-      <label class="field">
-        <span>オーナー名（必須）</span>
+        <span>お名前</span>
         <input
           v-model.trim="form.name"
+          type="text"
+          required
           placeholder="山田 太郎"
           autocomplete="name"
-          required
         />
       </label>
 
       <label class="field">
-        <span>メールアドレス（必須）</span>
+        <span>メールアドレス</span>
         <input
           v-model.trim="form.email"
           type="email"
-          placeholder="owner@example.com"
-          autocomplete="email"
           required
+          placeholder="user@example.com"
+          autocomplete="email"
         />
       </label>
 
       <label class="field">
-        <span>電話番号（必須）</span>
+        <span>電話番号（任意）</span>
         <input
           v-model.trim="form.phone"
           type="tel"
           placeholder="09012345678"
           autocomplete="tel"
-          required
         />
       </label>
 
       <label class="field">
-        <span>パスワード（必須）</span>
+        <span>パスワード</span>
         <input
           v-model="form.password"
           type="password"
+          required
           minlength="8"
           placeholder="英数字8文字以上"
           autocomplete="new-password"
-          required
         />
       </label>
 
       <div class="ops">
-        <router-link to="/store-auth/login" class="btn ghost">ビジネスログインへ戻る</router-link>
+        <router-link class="btn ghost" to="/login">すでにアカウントをお持ちの方</router-link>
         <button class="btn" type="submit" :disabled="loading">
           {{ loading ? "登録中..." : "登録する" }}
         </button>
@@ -75,41 +65,31 @@
 <script setup>
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import api from "@/lib/api";
-import { fetchMe, setAuthToken } from "@/lib/auth";
+import { registerUser } from "@/lib/auth";
 
 const router = useRouter();
-
 const form = reactive({
-  shopName: "",
   name: "",
   email: "",
-  phone: "",
   password: "",
+  phone: "",
 });
-
 const loading = ref(false);
 const err = ref("");
 
 async function onSubmit() {
   err.value = "";
   loading.value = true;
-
   try {
-    const payload = {
-      shopName: form.shopName,
+    await registerUser({
       name: form.name,
       email: form.email,
-      phone: form.phone,
       password: form.password,
-    };
-    const { data } = await api.post("/auth/register-owner", payload);
-    if (!data?.token) throw new Error("トークンを取得できませんでした");
-    setAuthToken(data.token);
-    await fetchMe();
-    router.push("/store/dashboard");
+      phone: form.phone || undefined,
+    });
+    router.push("/public/shops");
   } catch (e) {
-    console.error("Failed to register owner", e);
+    console.error("Failed to register user", e);
     err.value =
       e?.response?.data?.message ||
       "登録に失敗しました。入力内容をご確認ください。";
@@ -122,7 +102,7 @@ async function onSubmit() {
 <style scoped>
 .page {
   padding: 16px;
-  max-width: 560px;
+  max-width: 520px;
 }
 .sub {
   margin: 12px 0;

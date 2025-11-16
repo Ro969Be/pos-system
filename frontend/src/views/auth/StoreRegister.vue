@@ -20,7 +20,7 @@
 <script setup>
 import { ref } from "vue";
 import api from "@/lib/api";
-import { fetchMe } from "@/lib/auth";
+import { fetchMe, setAuthToken } from "@/lib/auth";
 import { useRouter } from "vue-router";
 import { joinStore } from "@/lib/socket";
 
@@ -49,7 +49,7 @@ async function onSubmit() {
     });
 
     // 3) トークン保存 → me取得 → joinStore → ダッシュボードへ
-    localStorage.setItem("token", data.token);
+    setAuthToken(data.token);
     const me = await fetchMe();
     if (me?.store?.id) joinStore(me.store.id);
     router.push("/store/dashboard");

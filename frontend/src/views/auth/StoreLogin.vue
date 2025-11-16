@@ -43,7 +43,7 @@
 import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/lib/api";
-import { fetchMe } from "@/lib/auth";
+import { fetchMe, setAuthToken } from "@/lib/auth";
 
 const router = useRouter();
 const route = useRoute();
@@ -65,7 +65,7 @@ async function onSubmit() {
     if (shopId.value) payload.shopId = shopId.value;
     const { data } = await api.post("/auth/login", payload);
     if (!data?.token) throw new Error("トークンを取得できませんでした");
-    localStorage.setItem("token", data.token);
+    setAuthToken(data.token);
     await fetchMe();
     const next = route.query.next || "/store/dashboard";
     router.push(next);
