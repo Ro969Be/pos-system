@@ -11,7 +11,7 @@ router.use(requireAuth);
 
 router.get(
   "/",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], {
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], {
     shopIdParam: "shopId",
   }),
   listSlots

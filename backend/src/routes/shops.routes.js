@@ -13,6 +13,10 @@ import {
   deleteTable,
   lockTable,
 } from "../controllers/tables.controller.js";
+import {
+  listShopStaff,
+  addShopStaff,
+} from "../controllers/staff.controller.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -31,8 +35,22 @@ router.delete(
 );
 
 router.get(
+  "/:shopId/staff",
+  requireRole(
+    ["Admin", "Owner", "AreaManager", "StoreManager", "SubManager"],
+    { shopIdParam: "shopId" }
+  ),
+  listShopStaff
+);
+router.post(
+  "/:shopId/staff",
+  requireRole(["Admin", "Owner"], { shopIdParam: "shopId" }),
+  addShopStaff
+);
+
+router.get(
   "/:shopId/tables",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], {
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], {
     shopIdParam: "shopId",
   }),
   listTables
@@ -54,7 +72,7 @@ router.delete(
 );
 router.patch(
   "/:shopId/tables/:tableId/lock",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], {
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], {
     shopIdParam: "shopId",
   }),
   lockTable

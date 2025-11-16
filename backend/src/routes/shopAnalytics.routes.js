@@ -7,13 +7,13 @@ router.use(requireAuth);
 
 router.get(
   "/sales",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], { shopIdParam: "shopId" }),
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], { shopIdParam: "shopId" }),
   salesAnalytics
 );
 
 router.get(
   "/products",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], { shopIdParam: "shopId" }),
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], { shopIdParam: "shopId" }),
   productAnalytics
 );
 

@@ -85,6 +85,26 @@ export async function listReservations(req, res, next) {
   }
 }
 
+export async function checkAvailability(req, res, next) {
+  try {
+    const shopId = resolveShopId(req);
+    if (!shopId || !mongoose.isValidObjectId(shopId)) {
+      return res.status(400).json({ message: "Invalid shopId" });
+    }
+    const start = req.query.startTime || req.body?.startTime;
+    const durationMinutes = Number(req.query.durationMinutes || req.body?.durationMinutes || 90);
+    const partySize = Number(req.query.partySize || req.query.people || req.body?.partySize?.total || 1);
+    const startDate = toDate(start || Date.now());
+    if (!startDate) return res.status(400).json({ message: "Invalid startTime" });
+    const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+    const table = await autoAssignTable(shopId, partySize, startDate, endDate);
+    if (!table) return res.status(409).json({ available: false });
+    return res.json({ available: true, tableId: table._id });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function createReservation(req, res, next) {
   try {
     const shopId = resolveShopId(req);
@@ -303,6 +323,25 @@ export async function patchSlot(req, res, next) {
     ).lean();
     if (!doc) return res.status(404).json({ message: "Slot not found" });
     res.json(doc);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function cancelReservation(req, res, next) {
+  try {
+    const shopId = resolveShopId(req);
+    if (!shopId || !mongoose.isValidObjectId(shopId)) {
+      return res.status(400).json({ message: "Invalid shopId" });
+    }
+    const id = req.params.reservationId || req.params.id;
+    const doc = await Reservation.findOneAndUpdate(
+      { _id: id, shopId },
+      { $set: { status: "cancelled" } },
+      { new: true }
+    ).lean();
+    if (!doc) return res.status(404).json({ message: "Reservation not found" });
+    return res.status(204).send();
   } catch (err) {
     next(err);
   }

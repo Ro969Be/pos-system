@@ -1,10 +1,15 @@
 // backend/src/controllers/auth.controller.js
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Staff from "../models/Staff.js";
 import Store from "../models/Store.js";
 import BusinessUser from "../models/BusinessUser.js";
-import { normalizeEmail, normalizePhone } from "../utils/identifiers.js";
+import {
+  normalizeEmail,
+  normalizePhone,
+  generateShopCode,
+} from "../utils/identifiers.js";
 import { canonicalRole } from "../utils/roles.js";
 
 const PERMISSIONS_BY_ROLE = {
@@ -34,9 +39,11 @@ const PERMISSIONS_BY_ROLE = {
     "staff.manage",
   ],
   StoreManager: ["kitchen.view", "hall.view", "pos.view", "pos.checkout"],
-  AssistantManager: ["kitchen.view", "hall.view", "pos.view"],
-  Employee: ["kitchen.view", "hall.view", "pos.view"],
-  PartTime: ["kitchen.view", "hall.view"],
+  SubManager: ["kitchen.view", "hall.view", "pos.view"],
+  FullTimeStaff: ["kitchen.view", "hall.view", "pos.view"],
+  PartTimeStaff: ["kitchen.view", "hall.view"],
+  Customer: [],
+  PublicCustomer: [],
 };
 
 function buildPermissions(roles = []) {
@@ -78,6 +85,32 @@ function determineActiveShopId(requestedShopId, bindings) {
   }
   if (bindings.length === 1) return String(bindings[0].shopId);
   return null;
+}
+
+async function resolveShopCode(shopName, requested) {
+  if (requested) {
+    const trimmed = String(requested).trim();
+    if (!trimmed) {
+      throw Object.assign(new Error("shopCode is invalid"), {
+        statusCode: 400,
+      });
+    }
+    const exists = await Store.exists({ code: trimmed });
+    if (exists) {
+      throw Object.assign(new Error("Shop code already exists"), {
+        statusCode: 409,
+      });
+    }
+    return trimmed;
+  }
+  for (let i = 0; i < 5; i += 1) {
+    const candidate = generateShopCode(shopName);
+    const exists = await Store.exists({ code: candidate });
+    if (!exists) return candidate;
+  }
+  throw Object.assign(new Error("Unable to allocate shop code"), {
+    statusCode: 500,
+  });
 }
 
 function signToken(payload) {
@@ -142,7 +175,8 @@ async function collectBindings(userId) {
 
   (staffAssignments || []).forEach((assignment) => {
     if (!assignment?.storeId) return;
-    const canonical = canonicalRole(assignment.role) || assignment.role || "Employee";
+    const canonical =
+      canonicalRole(assignment.role) || assignment.role || "FullTimeStaff";
     bindings.push({
       shopId: assignment.storeId,
       role: canonical,
@@ -150,7 +184,195 @@ async function collectBindings(userId) {
     if (canonical) roles.add(canonical);
   });
 
-  return { biz, bindings: sanitizeBindings(bindings), roles: Array.from(roles) };
+  const uniqueRoles = Array.from(roles);
+  if (!uniqueRoles.length) {
+    uniqueRoles.push("Customer");
+  }
+  return { biz, bindings: sanitizeBindings(bindings), roles: uniqueRoles };
+}
+
+export async function register(req, res, next) {
+  try {
+    const { name, email, password, phone } = req.body || {};
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof password !== "string" ||
+      !password
+    ) {
+      return res
+        .status(400)
+        .json({ message: "name, email and password are required" });
+    }
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: "Valid email is required" });
+    }
+    const existing = await User.findOne({ emailLower: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
+    const phoneValue = typeof phone === "string" ? phone.trim() : undefined;
+    const user = await User.create({
+      userName: name.trim(),
+      email,
+      phone: phoneValue,
+      passwordHash,
+    });
+    const { biz, bindings, roles } = await collectBindings(user._id);
+    const payload = {
+      userId: String(user._id),
+      roles,
+      bindings,
+      storeId: null,
+    };
+    const token = signToken(payload);
+    res.status(201).json({
+      token,
+      user: buildUserResponse({
+        user,
+        payload,
+        bindings,
+        businessUser: biz,
+        activeStore: null,
+      }),
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+    next(err);
+  }
+}
+
+export async function registerOwner(req, res, next) {
+  try {
+    const {
+      name,
+      email,
+      password,
+      shopName,
+      shopCode,
+      phone,
+      address,
+    } = req.body || {};
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof password !== "string" ||
+      !password ||
+      typeof shopName !== "string" ||
+      !shopName.trim()
+    ) {
+      return res.status(400).json({
+        message: "name, email, password and shopName are required",
+      });
+    }
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: "Valid email is required" });
+    }
+    const existing = await User.findOne({ emailLower: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
+    const phoneValue = typeof phone === "string" ? phone.trim() : undefined;
+    const user = await User.create({
+      userName: name.trim(),
+      email,
+      phone: phoneValue,
+      passwordHash,
+    });
+    const code = await resolveShopCode(shopName, shopCode);
+    const store = await Store.create({
+      shopName: shopName.trim(),
+      code,
+      phone: phoneValue,
+      address: address || undefined,
+      ownerUserId: user._id,
+    });
+    const businessUser = await BusinessUser.create({
+      userId: user._id,
+      businessName: shopName.trim(),
+      role: "Owner",
+      roleBindings: [{ shopId: store._id, role: "Owner" }],
+    });
+    await Store.updateOne(
+      { _id: store._id },
+      { $set: { businessId: businessUser._id, ownerUserId: user._id } }
+    );
+    await User.updateOne(
+      { _id: user._id },
+      { $addToSet: { shopIds: store._id, storeIds: store._id } }
+    );
+    const { biz, bindings, roles } = await collectBindings(user._id);
+    const payload = {
+      userId: String(user._id),
+      roles,
+      bindings,
+      storeId: determineActiveShopId(store._id, bindings),
+    };
+    const token = signToken(payload);
+    const activeStore = payload.storeId
+      ? await Store.findById(payload.storeId).lean()
+      : null;
+    res.status(201).json({
+      token,
+      user: buildUserResponse({
+        user,
+        payload,
+        bindings,
+        businessUser: biz,
+        activeStore,
+      }),
+    });
+   } catch (err) {
+    // 🔍 一旦ここで詳細ログを出す
+    console.error("registerOwner ERROR:", {
+      message: err.message,
+      code: err.code,
+      name: err.name,
+      keyPattern: err.keyPattern,
+      keyValue: err.keyValue,
+    });
+
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+
+    if (err.code === 11000) {
+      // どのキーで重複したかを見て、メッセージを分ける
+      const key = err.keyPattern ? Object.keys(err.keyPattern)[0] : null;
+
+      if (key === "emailLower") {
+        return res.status(409).json({ message: "Email already registered" });
+      }
+
+      if (key === "code") {
+        return res.status(409).json({ message: "Shop code already exists" });
+      }
+
+      if (key === "userId") {
+        return res
+          .status(409)
+          .json({ message: "BusinessUser already exists for this user" });
+      }
+
+      return res.status(409).json({
+        message: "Duplicate key detected",
+        keyPattern: err.keyPattern,
+        keyValue: err.keyValue,
+      });
+    }
+
+    next(err);
+  }
 }
 
 export async function login(req, res, next) {

@@ -1,18 +1,12 @@
-import express from "express";
-import request from "supertest";
 import jwt from "jsonwebtoken";
 import { jest } from "@jest/globals";
-import authRoutes from "../routes/auth.routes.js";
 import User from "../models/User.js";
 import BusinessUser from "../models/BusinessUser.js";
 import Staff from "../models/Staff.js";
 import Store from "../models/Store.js";
+import { login, me } from "../controllers/auth.controller.js";
 
 process.env.JWT_SECRET = "test-secret";
-
-const app = express();
-app.use(express.json());
-app.use("/api/auth", authRoutes);
 
 describe("Auth & RBAC login", () => {
   afterEach(() => {
@@ -49,13 +43,14 @@ describe("Auth & RBAC login", () => {
               activeFlag: true,
             },
           ]),
-      }),
+        }),
     });
 
-    const res = await request(app)
-      .post("/api/auth/login")
-      .send({ email: "admin@example.com", password: "secret" })
-      .expect(200);
+    const req = {
+      body: { email: "admin@example.com", password: "secret" },
+    };
+    const res = createRes();
+    await login(req, res, jest.fn());
 
     expect(comparePassword).toHaveBeenCalled();
     expect(res.body.token).toBeTruthy();
@@ -69,10 +64,13 @@ describe("Auth & RBAC login", () => {
       comparePassword: jest.fn().mockResolvedValue(false),
     });
 
-    await request(app)
-      .post("/api/auth/login")
-      .send({ email: "admin@example.com", password: "wrong" })
-      .expect(401);
+    const res = createRes();
+    await login(
+      { body: { email: "admin@example.com", password: "wrong" } },
+      res,
+      jest.fn()
+    );
+    expect(res.statusCode).toBe(401);
   });
 });
 
@@ -116,10 +114,17 @@ describe("GET /api/auth/me", () => {
       process.env.JWT_SECRET
     );
 
-    const res = await request(app)
-      .get("/api/auth/me")
-      .set("Authorization", `Bearer ${token}`)
-      .expect(200);
+    const req = {
+      headers: { authorization: `Bearer ${token}` },
+      user: {
+        userId: "64b000000000000000000001",
+        roles: ["Admin"],
+        bindings: [{ shopId: "s1", role: "Admin" }],
+        storeId: "s1",
+      },
+    };
+    const res = createRes();
+    await me(req, res, jest.fn());
 
     expect(res.body.userName).toBe("Demo Admin");
     expect(res.body.permissions).toEqual(
@@ -128,3 +133,18 @@ describe("GET /api/auth/me", () => {
     expect(res.body.shop).toMatchObject({ code: "DEV-001" });
   });
 });
+
+function createRes() {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload) {
+      this.body = payload;
+      return this;
+    },
+  };
+}

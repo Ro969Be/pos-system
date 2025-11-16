@@ -15,7 +15,7 @@ router.use(requireAuth);
 
 router.get(
   "/",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], {
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], {
     shopIdParam: "shopId",
   }),
   listRegisters
@@ -23,7 +23,7 @@ router.get(
 
 router.get(
   "/:registerId/session",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], {
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], {
     shopIdParam: "shopId",
   }),
   getActiveSession
@@ -37,7 +37,7 @@ router.post(
 
 router.post(
   "/:registerId/session/:sessionId/cash",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], {
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], {
     shopIdParam: "shopId",
   }),
   cashMovement
@@ -57,7 +57,7 @@ router.patch(
 
 router.get(
   "/:registerId/history",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], {
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], {
     shopIdParam: "shopId",
   }),
   listHistory

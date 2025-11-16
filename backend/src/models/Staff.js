@@ -11,6 +11,27 @@ const EMPLOYMENT_TYPES = [
   "Other",
 ];
 
+const LEGACY_ROLE_VALUES = [
+  "admin",
+  "owner",
+  "area_manager",
+  "areamanager",
+  "store_manager",
+  "storemanager",
+  "assistant_manager",
+  "assistantmanager",
+  "sub_manager",
+  "submanager",
+  "employee",
+  "staff",
+  "worker",
+  "part_time",
+  "part_time_staff",
+  "full_time",
+  "fulltime",
+  "full_time_staff",
+];
+
 const StaffSchema = new mongoose.Schema(
   {
     storeId: {
@@ -27,18 +48,8 @@ const StaffSchema = new mongoose.Schema(
     accountName: { type: String },
     role: {
       type: String,
-      enum: [
-        ...ROLE_VALUES,
-        "admin",
-        "owner",
-        "area_manager",
-        "store_manager",
-        "assistant_manager",
-        "employee",
-        "staff",
-        "part_time",
-      ],
-      default: "Employee",
+      enum: [...new Set([...ROLE_VALUES, ...LEGACY_ROLE_VALUES])],
+      default: "FullTimeStaff",
       set: (value) => canonicalRole(value) || value,
     },
     skills: { type: [String], default: [] },
@@ -62,11 +73,11 @@ StaffSchema.virtual("shopId")
   });
 
 StaffSchema.methods.primaryRole = function primaryRole() {
-  return canonicalRole(this.role) || this.role || "Employee";
+  return canonicalRole(this.role) || this.role || "FullTimeStaff";
 };
 
 StaffSchema.methods.primaryRoleLegacy = function primaryRoleLegacy() {
-  return legacyRole(this.role) || this.role || "employee";
+  return legacyRole(this.role) || this.role || "full_time_staff";
 };
 
 StaffSchema.index({ storeId: 1, userId: 1 }, { unique: true });

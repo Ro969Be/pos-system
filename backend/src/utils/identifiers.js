@@ -1,5 +1,7 @@
 // backend/src/utils/identifiers.js
 
+import crypto from "crypto";
+
 /**
  * Normalize email for case-insensitive comparisons.
  * @param {string} value
@@ -25,4 +27,19 @@ export function normalizePhone(value) {
   return digits
     ? `${hasPlus ? "+" : ""}${digits}`
     : null;
+}
+
+/**
+ * Generate a short shop code using the provided name as prefix.
+ * @param {string} name
+ * @returns {string}
+ */
+export function generateShopCode(name = "") {
+  const prefix =
+    (name || "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .slice(0, 4)
+      .toUpperCase() || "SHOP";
+  const random = crypto.randomBytes(3).toString("hex").slice(0, 4).toUpperCase();
+  return `${prefix}-${random}`;
 }

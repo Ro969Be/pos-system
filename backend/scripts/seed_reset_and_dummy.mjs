@@ -11,6 +11,7 @@ import Category from "../src/models/Category.js";
 import Register from "../src/models/Register.js";
 import MobileOrderSetting from "../src/models/MobileOrderSetting.js";
 import Table from "../src/models/Table.js";
+import { canonicalRole } from "../src/utils/roles.js";
 
 // Business ログイン（既存の business login / select-store を活かすなら）
 import Business from "../src/models/Business.js";
@@ -78,15 +79,15 @@ async function main(){
   console.log("🔗 Linked stores to business owners (owner1/owner2).");
 
   // ====== Users 47件作成（ロール構成に合わせる） ======
-  // 1 admin / 2 owner / 3 area mgr / 8 store mgr / 8 assistant mgr / 15 employee / 10 part-time
+  // 1 admin / 2 owner / 3 area mgr / 8 store mgr / 8 sub mgr / 15 full-time staff / 10 part-time staff
   const rolePlan = [
     ...Array(1).fill("admin"),
     ...Array(2).fill("owner"),
     ...Array(3).fill("area_manager"),
     ...Array(8).fill("store_manager"),
-    ...Array(8).fill("assistant_manager"),
-    ...Array(15).fill("employee"),
-    ...Array(10).fill("part_time"),
+    ...Array(8).fill("sub_manager"),
+    ...Array(15).fill("full_time_staff"),
+    ...Array(10).fill("part_time_staff"),
   ];
   if (rolePlan.length !== 47) throw new Error("role plan total must be 47");
 
@@ -94,7 +95,7 @@ async function main(){
   for (let i=0;i<rolePlan.length;i++){
     const role = rolePlan[i];
     users.push({
-      name: `${role.replace("_"," ")}-${i+1}`,
+      name: `${role.replace(/_/g," ")}-${i+1}`,
       email: emailOf(role, i+1),
       phone: phoneOf(i+1),
       emailLower: emailOf(role, i+1),
@@ -109,8 +110,8 @@ async function main(){
   // - admin: 全店舗にアクセス可能 → 各店舗に Staff としても置く
   // - owner: 自分の business に紐づく店舗（複数）へ配置
   // - area_manager: 複数店舗へ（ここでは 2〜3店舗程度を割当）
-  // - store_manager / assistant_manager / employee / part_time:
-  //   → 単一店舗へ割当（ employee/part_time は各店舗に複数散らす ）
+  // - store_manager / sub_manager / full_time_staff / part_time_staff:
+  //   → 単一店舗へ割当（ full_time_staff/part_time_staff は各店舗に複数散らす ）
 
   // 役割別ユーザー配列
   const byRole = rolePlan.reduce((acc, r, i) => {
@@ -124,7 +125,13 @@ async function main(){
   // 1) admin（全店舗へ）
   for (const u of byRole["admin"] || []) {
     for (const st of stores) {
-      staffDocs.push({ storeId: st._id, userId: u._id, role: "admin", displayName: u.name, accountName: u.email });
+      staffDocs.push({
+        storeId: st._id,
+        userId: u._id,
+        role: canonicalRole("admin") || "Admin",
+        displayName: u.name,
+        accountName: u.email,
+      });
       u.storeIds.push(st._id);
     }
   }
@@ -135,7 +142,13 @@ async function main(){
   owners.forEach((u, idx) => {
     const myStores = ownersGroups[idx % ownersGroups.length];
     myStores.forEach(st => {
-      staffDocs.push({ storeId: st._id, userId: u._id, role: "owner", displayName: u.name, accountName: u.email });
+      staffDocs.push({
+        storeId: st._id,
+        userId: u._id,
+        role: canonicalRole("owner") || "Owner",
+        displayName: u.name,
+        accountName: u.email,
+      });
       u.storeIds.push(st._id);
     });
   });
@@ -145,7 +158,13 @@ async function main(){
     const k = 2 + (u._id.getTimestamp().getTime() % 2); // 2 or 3
     for (let i=0;i<k;i++){
       const st = stores[(u._id.getTimestamp().getTime() + i) % stores.length];
-      staffDocs.push({ storeId: st._id, userId: u._id, role: "area_manager", displayName: u.name, accountName: u.email });
+      staffDocs.push({
+        storeId: st._id,
+        userId: u._id,
+        role: canonicalRole("area_manager") || "AreaManager",
+        displayName: u.name,
+        accountName: u.email,
+      });
       u.storeIds.push(st._id);
     }
   }
@@ -153,30 +172,54 @@ async function main(){
   // 4) store_manager（各人 1店舗）
   for (const u of byRole["store_manager"] || []) {
     const st = stores[u._id.getTimestamp().getTime() % stores.length];
-    staffDocs.push({ storeId: st._id, userId: u._id, role: "store_manager", displayName: u.name, accountName: u.email });
+    staffDocs.push({
+      storeId: st._id,
+      userId: u._id,
+      role: canonicalRole("store_manager") || "StoreManager",
+      displayName: u.name,
+      accountName: u.email,
+    });
     u.storeIds.push(st._id);
   }
 
-  // 5) assistant_manager（各人 1店舗）
-  for (const u of byRole["assistant_manager"] || []) {
+  // 5) sub_manager（各人 1店舗）
+  for (const u of byRole["sub_manager"] || []) {
     const st = stores[(u._id.getTimestamp().getTime()+1) % stores.length];
-    staffDocs.push({ storeId: st._id, userId: u._id, role: "assistant_manager", displayName: u.name, accountName: u.email });
+    staffDocs.push({
+      storeId: st._id,
+      userId: u._id,
+      role: canonicalRole("sub_manager") || "SubManager",
+      displayName: u.name,
+      accountName: u.email,
+    });
     u.storeIds.push(st._id);
   }
 
-  // 6) employee（各人 1店舗、全店舗にまんべんなく）
-  for (let i=0; i<(byRole["employee"]||[]).length; i++){
-    const u = byRole["employee"][i];
+  // 6) full_time_staff（各人 1店舗、全店舗にまんべんなく）
+  for (let i=0; i<(byRole["full_time_staff"]||[]).length; i++){
+    const u = byRole["full_time_staff"][i];
     const st = stores[i % stores.length];
-    staffDocs.push({ storeId: st._id, userId: u._id, role: "employee", displayName: u.name, accountName: u.email });
+    staffDocs.push({
+      storeId: st._id,
+      userId: u._id,
+      role: canonicalRole("full_time_staff") || "FullTimeStaff",
+      displayName: u.name,
+      accountName: u.email,
+    });
     u.storeIds.push(st._id);
   }
 
-  // 7) part_time（各人 1店舗、employee と似た配分）
-  for (let i=0; i<(byRole["part_time"]||[]).length; i++){
-    const u = byRole["part_time"][i];
+  // 7) part_time_staff（各人 1店舗、full_time_staff と似た配分）
+  for (let i=0; i<(byRole["part_time_staff"]||[]).length; i++){
+    const u = byRole["part_time_staff"][i];
     const st = stores[(i+3) % stores.length];
-    staffDocs.push({ storeId: st._id, userId: u._id, role: "part_time", displayName: u.name, accountName: u.email });
+    staffDocs.push({
+      storeId: st._id,
+      userId: u._id,
+      role: canonicalRole("part_time_staff") || "PartTimeStaff",
+      displayName: u.name,
+      accountName: u.email,
+    });
     u.storeIds.push(st._id);
   }
 

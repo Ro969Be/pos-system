@@ -38,10 +38,10 @@ const ConsentFlagsSchema = new mongoose.Schema(
 const UserSchema = new mongoose.Schema(
   {
     userName: { type: String, required: true, trim: true },
-    email: { type: String, trim: true, lowercase: true },
-    emailLower: { type: String, lowercase: true, select: false },
-    phone: { type: String, trim: true },
-    phoneNorm: { type: String, select: false },
+    email: { type: String, trim: true, lowercase: true, required: true },
+    emailLower: { type: String, lowercase: true, select: false, unique: true, select: false },
+    phone: { type: String, trim: true, required: true },
+    phoneNorm: { type: String, unique: true, select: false },
     iconUrl: String,
     kanaSei: String,
     kanaMei: String,

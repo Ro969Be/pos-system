@@ -17,7 +17,7 @@ router.use(requireAuth);
 
 router.get(
   "/",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], { shopIdParam: "shopId" }),
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], { shopIdParam: "shopId" }),
   listJobs
 );
 router.post(
@@ -38,7 +38,7 @@ router.delete(
 
 router.get(
   "/:jobId/applications",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], { shopIdParam: "shopId" }),
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], { shopIdParam: "shopId" }),
   listApplications
 );
 router.post(
@@ -54,12 +54,12 @@ router.patch(
 
 router.get(
   "/:jobId/applications/:applicationId/messages",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], { shopIdParam: "shopId" }),
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], { shopIdParam: "shopId" }),
   listMessages
 );
 router.post(
   "/:jobId/applications/:applicationId/messages",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], { shopIdParam: "shopId" }),
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], { shopIdParam: "shopId" }),
   createMessage
 );
 

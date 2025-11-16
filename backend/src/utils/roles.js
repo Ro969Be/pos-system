@@ -5,21 +5,50 @@ export const ROLE_VALUES = [
   "Owner",
   "AreaManager",
   "StoreManager",
-  "AssistantManager",
-  "Employee",
-  "PartTime",
+  "SubManager",
+  "FullTimeStaff",
+  "PartTimeStaff",
+  "Customer",
+  "PublicCustomer",
 ];
 
 const LEGACY_TO_CANONICAL = {
   admin: "Admin",
   owner: "Owner",
   area_manager: "AreaManager",
+  areamanager: "AreaManager",
   store_manager: "StoreManager",
-  assistant_manager: "AssistantManager",
-  employee: "Employee",
-  staff: "Employee",
-  part_time: "PartTime",
+  storemanager: "StoreManager",
   manager: "StoreManager",
+  assistant_manager: "SubManager",
+  assistantmanager: "SubManager",
+  sub_manager: "SubManager",
+  submanager: "SubManager",
+  employee: "FullTimeStaff",
+  employees: "FullTimeStaff",
+  staff: "FullTimeStaff",
+  worker: "FullTimeStaff",
+  crew: "FullTimeStaff",
+  full_time_staff: "FullTimeStaff",
+  full_time: "FullTimeStaff",
+  fulltime: "FullTimeStaff",
+  part_time: "PartTimeStaff",
+  part_time_staff: "PartTimeStaff",
+  parttime: "PartTimeStaff",
+  parttimestaff: "PartTimeStaff",
+  parttimers: "PartTimeStaff",
+  public_customer: "PublicCustomer",
+  guest: "PublicCustomer",
+  customer: "Customer",
+  customers: "Customer",
+  SubManager: "SubManager",
+  StoreManager: "StoreManager",
+  AreaManager: "AreaManager",
+  Owner: "Owner",
+  Admin: "Admin",
+  Employee: "FullTimeStaff",
+  Staff: "FullTimeStaff",
+  PartTime: "PartTimeStaff",
 };
 
 const CANONICAL_TO_LEGACY = {
@@ -27,9 +56,11 @@ const CANONICAL_TO_LEGACY = {
   Owner: "owner",
   AreaManager: "area_manager",
   StoreManager: "store_manager",
-  AssistantManager: "assistant_manager",
-  Employee: "employee",
-  PartTime: "part_time",
+  SubManager: "sub_manager",
+  FullTimeStaff: "full_time_staff",
+  PartTimeStaff: "part_time_staff",
+  Customer: "customer",
+  PublicCustomer: "public_customer",
 };
 
 /**
@@ -37,8 +68,17 @@ const CANONICAL_TO_LEGACY = {
  */
 export function canonicalRole(role) {
   if (!role) return null;
-  if (ROLE_VALUES.includes(role)) return role;
-  return LEGACY_TO_CANONICAL[role] || null;
+  const value = String(role).trim();
+  if (!value) return null;
+  if (ROLE_VALUES.includes(value)) return value;
+  const lower = value.toLowerCase();
+  const normalized = lower.replace(/[\s_-]/g, "");
+  return (
+    LEGACY_TO_CANONICAL[value] ||
+    LEGACY_TO_CANONICAL[lower] ||
+    LEGACY_TO_CANONICAL[normalized] ||
+    null
+  );
 }
 
 /**
@@ -46,21 +86,27 @@ export function canonicalRole(role) {
  */
 export function legacyRole(role) {
   if (!role) return null;
-  if (role in CANONICAL_TO_LEGACY) return CANONICAL_TO_LEGACY[role];
-  if (LEGACY_TO_CANONICAL[role]) return role;
+  const canonical = canonicalRole(role);
+  if (canonical && CANONICAL_TO_LEGACY[canonical]) {
+    return CANONICAL_TO_LEGACY[canonical];
+  }
+  const lower = typeof role === "string" ? role.toLowerCase() : role;
+  if (LEGACY_TO_CANONICAL[lower]) return lower;
   return role;
 }
 
 export function roleRank(role) {
   const canonical = canonicalRole(role) || role;
   const ranks = {
-    Admin: 6,
-    Owner: 5,
-    AreaManager: 4,
-    StoreManager: 3,
-    AssistantManager: 2,
-    Employee: 1,
-    PartTime: 0,
+    Admin: 8,
+    Owner: 7,
+    AreaManager: 6,
+    StoreManager: 5,
+    SubManager: 4,
+    FullTimeStaff: 3,
+    PartTimeStaff: 2,
+    Customer: 1,
+    PublicCustomer: 0,
   };
   return ranks[canonical] ?? ranks[role] ?? -1;
 }

@@ -61,13 +61,19 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 5000;
-connectDB(process.env.MONGO_URI)
-  .then(() => {
-    server.listen(PORT, () =>
-      console.log(`✅ Server http://localhost:${PORT}`)
-    );
-  })
-  .catch((err) => {
-    console.error("❌ Mongo connection error:", err);
-    process.exit(1);
-  });
+const HOST = process.env.HOST || "127.0.0.1";
+
+async function startServer() {
+  try {
+    await connectDB(process.env.MONGO_URI);
+    console.log("✅ Mongo connected");
+  } catch (err) {
+    console.warn(`⚠️ Mongo connection failed: ${err.message}`);
+    console.warn("Proceeding without database connection. Check MONGO_URI.");
+  }
+  server.listen(PORT, HOST, () =>
+    console.log(`✅ Server http://${HOST}:${PORT}`)
+  );
+}
+
+startServer();

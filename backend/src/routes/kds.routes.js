@@ -7,7 +7,7 @@ router.use(requireAuth);
 
 router.patch(
   "/:ticketId/:action",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"]),
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"]),
   mutateKdsTicket
 );
 

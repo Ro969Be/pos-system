@@ -10,7 +10,7 @@ function attachUserContext(req, payload = {}) {
     ? bindings.find((b) => String(b.shopId) === String(activeShopId))
     : null;
   const primaryRole =
-    bindingForStore?.role || roles[0] || payload.role || "Employee";
+    bindingForStore?.role || roles[0] || payload.role || "Customer";
 
   req.user = {
     ...payload,

@@ -15,7 +15,7 @@ router.use(requireAuth);
 
 router.get(
   "/",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], {
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], {
     shopIdParam: "shopId",
   }),
   listCoupons
@@ -38,14 +38,14 @@ router.delete(
 
 router.post(
   "/:couponId/redemptions",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], {
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], {
     shopIdParam: "shopId",
   }),
   issueRedemption
 );
 router.patch(
   "/:couponId/redemptions/:redemptionId/use",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"], {
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"], {
     shopIdParam: "shopId",
   }),
   useRedemption

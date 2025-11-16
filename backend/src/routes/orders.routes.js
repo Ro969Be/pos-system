@@ -32,7 +32,7 @@ router.delete(
 
 router.post(
   "/:orderId/payments",
-  requireRole(["Admin", "Owner", "StoreManager", "AssistantManager"]),
+  requireRole(["Admin", "Owner", "AreaManager", "StoreManager", "SubManager", "FullTimeStaff"]),
   createPayment
 );
 router.post(
